@@ -15,9 +15,11 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
   const login = async (phone) => {
     try {
-      const response = await fetch('http://localhost:4000/api/auth/login', {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
@@ -36,7 +38,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (userData) => {
     try {
-      const response = await fetch('http://localhost:4000/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),

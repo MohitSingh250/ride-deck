@@ -20,6 +20,8 @@ const RiderDashboard = () => {
     { id: 'cab', name: 'Cab', icon: Car, price: '₹120', time: '12 min' },
   ];
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
   // Poll for current ride status
   useEffect(() => {
     let interval;
@@ -27,7 +29,7 @@ const RiderDashboard = () => {
       const fetchRide = async () => {
         if (isCancelling.current) return; // Skip polling if cancelling
         try {
-          const response = await fetch(`http://localhost:4000/api/rides/my-ride/${user._id}`);
+          const response = await fetch(`${API_URL}/api/rides/my-ride/${user._id}`);
           const data = await response.json();
           console.log('Polling my-ride:', data); // Debug log
           if (data) {
@@ -56,7 +58,7 @@ const RiderDashboard = () => {
     isCancelling.current = false; // Reset cancel flag on new booking
     
     try {
-      const response = await fetch('http://localhost:4000/api/rides/book', {
+      const response = await fetch(`${API_URL}/api/rides/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,7 +86,7 @@ const RiderDashboard = () => {
     setShowCancelConfirm(false);
     isCancelling.current = true; // Set flag immediately
     try {
-        const response = await fetch('http://localhost:4000/api/rides/update-status', {
+        const response = await fetch(`${API_URL}/api/rides/update-status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ rideId: currentRide._id, status: 'cancelled' }),

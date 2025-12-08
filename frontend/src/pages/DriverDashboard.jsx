@@ -17,13 +17,14 @@ const DriverDashboard = () => {
     }
   }, [user]);
 
-  // Poll for rides when online and subscribed
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
   useEffect(() => {
     let interval;
     if (isOnline && subscriptionStatus === 'active') {
       const fetchRides = async () => {
         try {
-          const response = await fetch('http://localhost:4000/api/rides/available');
+          const response = await fetch(`${API_URL}/api/rides/available`);
           const data = await response.json();
           setAvailableRides(data);
         } catch (error) {
@@ -41,7 +42,7 @@ const DriverDashboard = () => {
 
   const toggleStatus = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/driver/status', {
+      const response = await fetch(`${API_URL}/api/driver/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user._id, isOnline: !isOnline }),
@@ -62,7 +63,7 @@ const DriverDashboard = () => {
 
   const activateSubscription = async (planId) => {
     try {
-      const response = await fetch('http://localhost:4000/api/driver/subscription', {
+      const response = await fetch(`${API_URL}/api/driver/subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user._id, plan: planId }),
@@ -83,7 +84,7 @@ const DriverDashboard = () => {
 
   const acceptRide = async (rideId) => {
     try {
-      const response = await fetch('http://localhost:4000/api/rides/accept', {
+      const response = await fetch(`${API_URL}/api/rides/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rideId, driverId: user._id }),
@@ -103,7 +104,7 @@ const DriverDashboard = () => {
 
   const updateRideStatus = async (status) => {
     try {
-      const response = await fetch('http://localhost:4000/api/rides/update-status', {
+      const response = await fetch(`${API_URL}/api/rides/update-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rideId: activeRide._id, status, otp: otpInput }),

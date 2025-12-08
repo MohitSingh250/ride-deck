@@ -14,9 +14,11 @@ const Profile = () => {
 
   if (!user) return <div className="pt-24 text-center">Please log in.</div>;
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
   const handleSave = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/api/users/update/${user._id}`, {
+      const response = await fetch(`${API_URL}/api/users/update/${user._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

@@ -7,10 +7,12 @@ const RideHistory = () => {
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`http://localhost:4000/api/rides/history/${user._id}`);
+        const response = await fetch(`${API_URL}/api/rides/history/${user._id}`);
         const data = await response.json();
         setRides(data);
       } catch (error) {
