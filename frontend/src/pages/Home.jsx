@@ -138,7 +138,7 @@ const Home = () => {
             
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="text-center max-w-3xl mx-auto">
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-black mb-6 leading-tight">
+                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter text-black mb-6 leading-tight">
                         {isDriver ? (
                             <>
                                 Drive when you want,<br />
@@ -151,7 +151,7 @@ const Home = () => {
                             </>
                         )}
                     </h1>
-                    <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500 mb-8">
+                    <p className="mt-4 max-w-2xl mx-auto text-lg sm:text-xl text-gray-500 mb-8 px-4">
                         {isDriver 
                             ? "Earn on your own schedule. No boss, no limits. Just you and the open road."
                             : "Request a ride, hop in, and go. Reliable, safe, and always ready when you are."
@@ -162,7 +162,7 @@ const Home = () => {
         </div>
 
         {/* Floating Widget (Booking for Rider / Dashboard for Driver) */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-24 lg:-mt-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-12 sm:-mt-24 lg:-mt-32">
             <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-100">
                 {isDriver ? (
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6">

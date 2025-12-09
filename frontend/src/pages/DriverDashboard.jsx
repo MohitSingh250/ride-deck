@@ -127,24 +127,27 @@ const DriverDashboard = () => {
   };
 
   return (
-    <div className="pt-16 min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
-          <div className="flex items-center">
-            <span className={`mr-3 text-sm font-medium ${isOnline ? 'text-green-600' : 'text-gray-500'}`}>
-              {isOnline ? 'You are Online' : 'You are Offline'}
+    <div className="pt-40 mt-20 min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Driver Dashboard</h1>
+            <p className="text-gray-500 mt-1">Welcome back, {user.name}</p>
+          </div>
+          <div className="flex items-center bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+            <span className={`mr-3 text-sm font-bold ${isOnline ? 'text-green-600' : 'text-gray-400'} px-2`}>
+              {isOnline ? 'Online' : 'Offline'}
             </span>
             <button
               onClick={toggleStatus}
               disabled={subscriptionStatus !== 'active'}
-              className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black ${
-                isOnline ? 'bg-green-500' : 'bg-gray-200'
+              className={`relative inline-flex flex-shrink-0 h-8 w-14 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none ${
+                isOnline ? 'bg-black' : 'bg-gray-200'
               } ${subscriptionStatus !== 'active' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span
-                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
-                  isOnline ? 'translate-x-5' : 'translate-x-0'
+                className={`pointer-events-none inline-block h-7 w-7 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                  isOnline ? 'translate-x-6' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -153,72 +156,97 @@ const DriverDashboard = () => {
 
         {/* Active Ride Section */}
         {activeRide && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8 shadow-sm">
-                <h3 className="text-lg font-bold text-black mb-2">Active Ride</h3>
-                <p>Pickup: {activeRide.pickup.address}</p>
-                <p>Dropoff: {activeRide.dropoff.address}</p>
-                <p className="font-bold mt-2">Status: {activeRide.status.toUpperCase()}</p>
-                
-                {activeRide.status === 'accepted' && (
-                    <div className="mt-4 flex gap-2">
-                        <input 
-                            type="text" 
-                            placeholder="Enter OTP from Rider" 
-                            className="border border-gray-300 p-2 rounded-lg focus:ring-black focus:border-black"
-                            value={otpInput}
-                            onChange={(e) => setOtpInput(e.target.value)}
-                        />
-                        <button 
-                            onClick={() => updateRideStatus('started')}
-                            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 font-medium"
-                        >
-                            Start Ride
-                        </button>
+            <div className="bg-black text-white rounded-3xl p-6 mb-8 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gray-800 rounded-full blur-3xl opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
+                <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-6">
+                        <div>
+                            <h3 className="text-xl font-bold mb-1">Current Trip</h3>
+                            <p className="text-gray-400 text-sm">Ride ID: #{activeRide._id.slice(-6)}</p>
+                        </div>
+                        <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
+                            {activeRide.status}
+                        </span>
                     </div>
-                )}
 
-                {activeRide.status === 'started' && (
-                    <div className="mt-4">
-                        <button 
-                            onClick={() => updateRideStatus('completed')}
-                            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium"
-                        >
-                            Complete Ride
-                        </button>
+                    <div className="space-y-6">
+                        <div className="flex items-start gap-4">
+                            <div className="flex flex-col items-center gap-1 mt-1">
+                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <div className="w-0.5 h-10 bg-gray-700"></div>
+                                <div className="w-3 h-3 bg-white rounded-square"></div>
+                            </div>
+                            <div className="flex-1 space-y-6">
+                                <div>
+                                    <p className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">Pickup</p>
+                                    <p className="font-medium text-lg">{activeRide.pickup.address}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">Dropoff</p>
+                                    <p className="font-medium text-lg">{activeRide.dropoff.address}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                )}
+                    
+                    <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        {activeRide.status === 'accepted' && (
+                            <>
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter OTP" 
+                                    className="bg-gray-900 border border-gray-700 text-white p-3 rounded-xl focus:ring-2 focus:ring-white focus:border-transparent w-full sm:w-48 text-center font-bold tracking-widest"
+                                    value={otpInput}
+                                    onChange={(e) => setOtpInput(e.target.value)}
+                                />
+                                <button 
+                                    onClick={() => updateRideStatus('started')}
+                                    className="w-full sm:w-auto bg-white text-black px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                                >
+                                    Start Ride
+                                </button>
+                            </>
+                        )}
+
+                        {activeRide.status === 'started' && (
+                            <button 
+                                onClick={() => updateRideStatus('completed')}
+                                className="w-full bg-green-500 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-600 transition-colors shadow-lg shadow-green-900/20"
+                            >
+                                Complete Ride
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
-          <div className="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-100">
-            <div className="px-4 py-5 sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">Today's Earnings</dt>
-              <dd className="mt-1 text-3xl font-semibold text-black">₹{earnings}</dd>
-            </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-10">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <dt className="text-sm font-bold text-gray-400 uppercase tracking-wider">Today's Earnings</dt>
+            <dd className="mt-2 text-4xl font-black text-black">₹{earnings}</dd>
           </div>
-          <div className="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-100">
-            <div className="px-4 py-5 sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">Rides Completed</dt>
-              <dd className="mt-1 text-3xl font-semibold text-black">0</dd>
-            </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <dt className="text-sm font-bold text-gray-400 uppercase tracking-wider">Rides Completed</dt>
+            <dd className="mt-2 text-4xl font-black text-black">0</dd>
           </div>
-          <div className="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-100">
-            <div className="px-4 py-5 sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">Subscription Status</dt>
-              <dd className={`mt-1 text-lg font-semibold ${subscriptionStatus === 'active' ? 'text-green-600' : 'text-red-600'}`}>
-                {subscriptionStatus === 'active' ? 'Active' : 'Expired'}
-              </dd>
-              {subscriptionStatus !== 'active' && (
-                <button
-                  onClick={() => setShowSubscriptionModal(true)}
-                  className="mt-2 text-sm text-white bg-black px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors w-full font-bold"
-                >
-                  Subscribe Now
-                </button>
-              )}
-            </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className={`absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2 ${subscriptionStatus === 'active' ? 'bg-green-100' : 'bg-red-100'}`}></div>
+            <dt className="text-sm font-bold text-gray-400 uppercase tracking-wider">Subscription</dt>
+            <dd className="mt-2 flex items-center justify-between">
+                <span className={`text-xl font-bold ${subscriptionStatus === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                    {subscriptionStatus === 'active' ? 'Active' : 'Expired'}
+                </span>
+                {subscriptionStatus !== 'active' && (
+                    <button
+                        onClick={() => setShowSubscriptionModal(true)}
+                        className="text-xs bg-black text-white px-3 py-1.5 rounded-lg font-bold hover:bg-gray-800"
+                    >
+                        Renew
+                    </button>
+                )}
+            </dd>
           </div>
         </div>
 
@@ -276,17 +304,25 @@ const DriverDashboard = () => {
             {availableRides.length > 0 ? (
                 <ul className="divide-y divide-gray-200">
                 {availableRides.map((ride) => (
-                    <li key={ride._id} className="py-4 flex justify-between items-center">
-                    <div>
-                        <p className="text-sm font-medium text-gray-900">Pickup: {ride.pickup.address}</p>
-                        <p className="text-sm text-gray-500">Dropoff: {ride.dropoff.address}</p>
-                        <p className="text-xs text-gray-400 mt-1">Fare: ₹{ride.fare} • {ride.vehicleType}</p>
+                    <li key={ride._id} className="py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                    <div className="flex-1">
+                        <div className="flex items-start gap-2 mb-1">
+                            <span className="text-xs font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-600 uppercase tracking-wide">Pickup</span>
+                            <p className="text-sm font-medium text-gray-900">{ride.pickup.address}</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                            <span className="text-xs font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-600 uppercase tracking-wide">Dropoff</span>
+                            <p className="text-sm text-gray-500">{ride.dropoff.address}</p>
+                        </div>
+                        <p className="text-xs text-black font-bold mt-2 bg-green-50 inline-block px-2 py-1 rounded">
+                            Earn ₹{ride.fare} • {ride.vehicleType}
+                        </p>
                     </div>
                     <button
                         onClick={() => acceptRide(ride._id)}
-                        className="ml-4 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
+                        className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-green-700 shadow-md transition-transform transform active:scale-95"
                     >
-                        Accept
+                        Accept Ride
                     </button>
                     </li>
                 ))}

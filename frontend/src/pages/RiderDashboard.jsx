@@ -169,9 +169,9 @@ const RiderDashboard = () => {
   }
 
   return (
-    <div className="pt-16 min-h-screen bg-gray-100 flex flex-col md:flex-row">
-      {/* Map Section */}
-      <div className="w-full md:w-2/3 h-[50vh] md:h-auto relative z-0 order-2 md:order-1">
+    <div className="pt-36 min-h-screen bg-gray-100 relative overflow-hidden flex flex-col">
+      {/* Map Section - Full Screen Background on Mobile, Split on Desktop */}
+      <div className="absolute inset-0 z-0 pt-36">
         <Map 
             center={[28.6139, 77.2090]} 
             markers={[
@@ -180,77 +180,83 @@ const RiderDashboard = () => {
         />
       </div>
 
-      {/* Booking Form Section */}
-      <div className="w-full md:w-1/3 bg-white p-6 shadow-2xl z-10 order-1 md:order-2 flex flex-col h-full overflow-y-auto">
-        <div className="mb-6">
-            <h2 className="text-2xl font-bold text-black">Where to?</h2>
+      {/* Booking Form Section - Floating Panel */}
+      <div className="relative z-10 flex-1 flex flex-col justify-end md:justify-start md:p-8 pointer-events-none">
+        <div className="bg-white w-full md:w-[450px] md:rounded-3xl shadow-2xl pointer-events-auto flex flex-col max-h-[85vh] md:max-h-[calc(100vh-140px)] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 bg-white">
+                <h2 className="text-2xl font-black text-black">Where to?</h2>
+            </div>
+            
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+                <form onSubmit={handleBook} className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <div className="h-2 w-2 bg-black rounded-full ring-4 ring-gray-100 group-focus-within:ring-black/10 transition-all"></div>
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-black transition-all font-medium"
+                                placeholder="Pickup Location"
+                                value={pickup}
+                                onChange={(e) => setPickup(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <div className="h-2 w-2 bg-black rounded-square ring-4 ring-gray-100 group-focus-within:ring-black/10 transition-all"></div>
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-black transition-all font-medium"
+                                placeholder="Dropoff Location"
+                                value={dropoff}
+                                onChange={(e) => setDropoff(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Vehicle Selection */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Suggested Rides</h3>
+                        {vehicles.map((vehicle) => (
+                        <div
+                            key={vehicle.id}
+                            onClick={() => setSelectedVehicle(vehicle.id)}
+                            className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all border-2 ${
+                            selectedVehicle === vehicle.id
+                                ? 'border-black bg-gray-50 shadow-sm'
+                                : 'border-transparent hover:bg-gray-50'
+                            }`}
+                        >
+                            <div className="flex items-center">
+                            <div className="w-16 h-12 flex items-center justify-center mr-4 bg-white rounded-lg shadow-sm">
+                                <vehicle.icon className={`h-8 w-8 ${selectedVehicle === vehicle.id ? 'text-black' : 'text-gray-600'}`} />
+                            </div>
+                            <div>
+                                <p className="font-bold text-lg text-gray-900 leading-tight">{vehicle.name}</p>
+                                <p className="text-xs text-gray-500 font-medium">{vehicle.time} away</p>
+                            </div>
+                            </div>
+                            <span className="font-bold text-lg text-black">{vehicle.price}</span>
+                        </div>
+                        ))}
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                        {bookingStatus || `Confirm ${vehicles.find(v => v.id === selectedVehicle)?.name}`}
+                    </button>
+                </form>
+            </div>
         </div>
-        
-        <form onSubmit={handleBook} className="space-y-6 flex-grow">
-          <div className="space-y-4">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <div className="h-2 w-2 bg-black rounded-full"></div>
-                </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-3 py-4 border-none bg-gray-100 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black transition-shadow font-medium"
-                  placeholder="Pickup Location"
-                  value={pickup}
-                  onChange={(e) => setPickup(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <div className="h-2 w-2 bg-black rounded-square"></div>
-                </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-3 py-4 border-none bg-gray-100 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black transition-shadow font-medium"
-                  placeholder="Dropoff Location"
-                  value={dropoff}
-                  onChange={(e) => setDropoff(e.target.value)}
-                  required
-                />
-              </div>
-          </div>
-
-          {/* Vehicle Selection */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Suggested Rides</h3>
-            {vehicles.map((vehicle) => (
-              <div
-                key={vehicle.id}
-                onClick={() => setSelectedVehicle(vehicle.id)}
-                className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all border-2 ${
-                  selectedVehicle === vehicle.id
-                    ? 'border-black bg-gray-50 shadow-sm'
-                    : 'border-transparent hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center">
-                  <div className="w-16 h-12 flex items-center justify-center mr-4">
-                    <vehicle.icon className={`h-10 w-10 ${selectedVehicle === vehicle.id ? 'text-black' : 'text-gray-600'}`} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg text-gray-900">{vehicle.name}</p>
-                    <p className="text-xs text-gray-500">{vehicle.time} away • <span className="text-gray-400">4 seats</span></p>
-                  </div>
-                </div>
-                <span className="font-bold text-lg text-black">{vehicle.price}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="submit"
-            className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-all transform hover:scale-[1.02]"
-          >
-            {bookingStatus || `Confirm ${vehicles.find(v => v.id === selectedVehicle)?.name}`}
-          </button>
-        </form>
       </div>
     </div>
   );

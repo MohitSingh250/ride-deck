@@ -117,23 +117,76 @@ const Navbar = () => {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <div className="md:hidden fixed inset-0 z-40 bg-white pt-20 pb-6 px-4 overflow-y-auto animate-fade-in-down">
+          <div className="space-y-6">
             {user ? (
               <>
-                <div className="px-3 py-2 text-gray-900 font-medium">{user.name}</div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left text-gray-600 hover:text-black block px-3 py-2 rounded-md text-base font-medium"
-                >
-                  Log out
-                </button>
+                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl">
+                    <div className="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center text-xl font-bold text-gray-500">
+                        {user.name.charAt(0)}
+                    </div>
+                    <div>
+                        <p className="text-lg font-bold text-black">{user.name}</p>
+                        <p className="text-sm text-gray-500">{user.email || user.phone}</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <Link 
+                        to={user.role === 'driver' ? '/driver-dashboard' : '/rider-dashboard'}
+                        onClick={() => setIsOpen(false)}
+                        className="col-span-2 bg-black text-white p-4 rounded-xl text-center font-bold text-lg shadow-lg"
+                    >
+                        {user.role === 'driver' ? 'Driver Dashboard' : 'Book a Ride'}
+                    </Link>
+                    <Link 
+                        to="/profile" 
+                        onClick={() => setIsOpen(false)}
+                        className="p-4 bg-gray-50 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
+                    >
+                        <UserIcon className="h-6 w-6 text-black" />
+                        <span className="font-medium">Profile</span>
+                    </Link>
+                    <Link 
+                        to="/history" 
+                        onClick={() => setIsOpen(false)}
+                        className="p-4 bg-gray-50 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
+                    >
+                        <div className="h-6 w-6 text-black flex items-center justify-center font-bold border-2 border-black rounded-full text-xs">H</div>
+                        <span className="font-medium">History</span>
+                    </Link>
+                </div>
+
+                <div className="border-t border-gray-100 pt-6">
+                    <button
+                        onClick={() => {
+                            handleLogout();
+                            setIsOpen(false);
+                        }}
+                        className="w-full flex items-center justify-center px-4 py-3 border border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-colors"
+                    >
+                        <LogOut className="h-5 w-5 mr-2" />
+                        Sign Out
+                    </button>
+                </div>
               </>
             ) : (
-              <>
-                <Link to="/login" className="text-gray-900 block px-3 py-2 rounded-md text-base font-medium">Log in</Link>
-                <Link to="/signup" className="text-black font-bold block px-3 py-2 rounded-md text-base font-medium">Sign up</Link>
-              </>
+              <div className="space-y-4 pt-8">
+                <Link 
+                    to="/login" 
+                    onClick={() => setIsOpen(false)}
+                    className="block w-full text-center px-6 py-4 border-2 border-gray-200 text-black font-bold rounded-xl hover:border-black transition-colors"
+                >
+                    Log In
+                </Link>
+                <Link 
+                    to="/signup" 
+                    onClick={() => setIsOpen(false)}
+                    className="block w-full text-center px-6 py-4 bg-black text-white font-bold rounded-xl shadow-lg hover:bg-gray-800 transition-colors"
+                >
+                    Sign Up
+                </Link>
+              </div>
             )}
           </div>
         </div>
