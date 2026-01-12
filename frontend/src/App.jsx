@@ -6,62 +6,65 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 
 import RiderDashboard from './pages/RiderDashboard';
 import DriverDashboard from './pages/DriverDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import RideHistory from './pages/RideHistory';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <div className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route 
-                path="/rider-dashboard" 
-                element={
-                  <ProtectedRoute role="rider">
-                    <RiderDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/driver-dashboard" 
-                element={
-                  <ProtectedRoute role="driver">
-                    <DriverDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/history" 
-                element={
+      <SocketProvider>
+        <Router>
+          <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff' } }} />
+          <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navbar />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/" element={
                   <ProtectedRoute>
-                    <RideHistory />
+                    <Home />
                   </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/profile" 
-                element={
+                } />
+                <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
                   </ProtectedRoute>
-                } 
-              />
-            </Routes>
+                } />
+                <Route path="/history" element={
+                  <ProtectedRoute>
+                    <RideHistory />
+                  </ProtectedRoute>
+                } />
+                <Route path="/rider-dashboard" element={
+                  <ProtectedRoute role="rider">
+                    <RiderDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/driver-dashboard" element={
+                  <ProtectedRoute role="driver">
+                    <DriverDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin" element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </main>
+            <Footer />
           </div>
-          <Footer />
-        </div>
-      </Router>
+        </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }

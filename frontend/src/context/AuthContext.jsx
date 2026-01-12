@@ -17,16 +17,16 @@ export const AuthProvider = ({ children }) => {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
-  const login = async (phone) => {
+  const login = async (phone, password) => {
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone, password }),
       });
       
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) throw new Error(data.message || 'Login failed');
 
       setUser(data);
       localStorage.setItem('user', JSON.stringify(data));
@@ -45,7 +45,10 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) {
+        const errorMsg = data.errors ? data.errors.map(e => e.msg).join(', ') : data.message;
+        throw new Error(errorMsg || 'Signup failed');
+      }
 
       setUser(data);
       localStorage.setItem('user', JSON.stringify(data));

@@ -32,6 +32,11 @@ const rideSchema = new mongoose.Schema({
     default: 'searching',
   },
   otp: String, // For ride start verification
+  rating: {
+    type: Number,
+    min: 1,
+    max: 5,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Ride', rideSchema);

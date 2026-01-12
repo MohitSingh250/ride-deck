@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, Clock, MapPin, Shield, Star, Smartphone, Globe, Navigation, Banknote, Calendar, ShieldCheck, User, Car } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 const Home = () => {
   const { user } = useAuth();
@@ -138,7 +139,12 @@ const Home = () => {
             
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="text-center max-w-3xl mx-auto">
-                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter text-black mb-6 leading-tight">
+                    <motion.h1 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter text-black mb-6 leading-tight"
+                    >
                         {isDriver ? (
                             <>
                                 Drive when you want,<br />
@@ -150,13 +156,18 @@ const Home = () => {
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 to-black">get anything.</span>
                             </>
                         )}
-                    </h1>
-                    <p className="mt-4 max-w-2xl mx-auto text-lg sm:text-xl text-gray-500 mb-8 px-4">
+                    </motion.h1>
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="mt-4 max-w-2xl mx-auto text-lg sm:text-xl text-gray-500 mb-8 px-4"
+                    >
                         {isDriver 
                             ? "Earn on your own schedule. No boss, no limits. Just you and the open road."
                             : "Request a ride, hop in, and go. Reliable, safe, and always ready when you are."
                         }
-                    </p>
+                    </motion.p>
                 </div>
             </div>
         </div>
@@ -298,6 +309,42 @@ const Home = () => {
                     </p>
                 </div>
             </div>
+        </div>
+      </div>
+
+      {/* Testimonials Section */}
+      <div className="py-24 bg-black text-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-black mb-4">Loved by Millions</h2>
+            <p className="text-xl text-gray-400">Don't just take our word for it.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: "Sarah J.", role: "Rider", text: "RideDeck changed my daily commute. The drivers are always professional and the cars are spotless.", rating: 5 },
+              { name: "Mike T.", role: "Driver", text: "I've doubled my earnings since switching to RideDeck. The instant payouts are a game changer.", rating: 5 },
+              { name: "Priya K.", role: "Rider", text: "Safe, reliable, and affordable. I use it for all my late-night shifts and never worry about getting home.", rating: 5 }
+            ].map((testimonial, i) => (
+              <div key={i} className="bg-gray-900 p-8 rounded-3xl border border-gray-800 hover:border-gray-700 transition-colors">
+                <div className="flex gap-1 mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                  ))}
+                </div>
+                <p className="text-lg text-gray-300 mb-6 leading-relaxed">"{testimonial.text}"</p>
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-gray-800 rounded-full flex items-center justify-center font-bold text-white">
+                    {testimonial.name[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold text-white">{testimonial.name}</p>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{testimonial.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

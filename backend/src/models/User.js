@@ -10,10 +10,9 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  email: {
+  password: {
     type: String,
-    unique: true,
-    sparse: true, // Allow null/undefined but unique if present
+    required: true,
   },
   role: {
     type: String,
@@ -24,6 +23,15 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  rating: {
+    type: Number,
+    default: 5,
+  },
+  totalRatings: {
+    type: Number,
+    default: 0,
+  },
+  profilePicture: String,
   // Driver specific fields
   vehicleType: {
     type: String,
