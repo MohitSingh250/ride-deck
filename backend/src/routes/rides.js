@@ -96,6 +96,18 @@ router.post('/accept', auth, async (req, res) => {
   const driverId = req.user._id;
 
   try {
+    const driver = await User.findById(req.user.id);
+    if (driver.role !== 'driver') {
+      return res.status(403).json({ message: 'Only drivers can accept rides' });
+    }
+
+    // Check subscription
+    if (driver.subscriptionStatus !== 'active' || (driver.subscriptionExpiry && new Date() > driver.subscriptionExpiry)) {
+      driver.subscriptionStatus = 'expired';
+      await driver.save();
+      return res.status(403).json({ message: 'Please renew your subscription to accept rides' });
+    }
+
     const ride = await Ride.findById(rideId);
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
     if (ride.status !== 'searching') return res.status(400).json({ message: 'Ride already accepted' });

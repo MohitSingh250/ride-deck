@@ -3,28 +3,37 @@ const router = express.Router();
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/authMiddleware');
 
-// @route   POST /api/driver/subscription
-// @desc    Activate driver subscription (Mock Payment)
+// @route   POST /api/driver/subscribe
+// @desc    Purchase/Activate driver subscription (Mock Payment)
 // @access  Private
-router.post('/subscription', auth, authorize('driver'), async (req, res) => {
-  const { plan } = req.body; // plan: 'daily', 'weekly', 'monthly'
+router.post('/subscribe', auth, authorize('driver'), async (req, res) => {
+  const { type } = req.body; // type: 'daily', 'weekly', 'monthly'
   const userId = req.user._id;
 
   try {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Mock payment success
+    let durationDays = 0;
+    if (type === 'daily') durationDays = 1;
+    else if (type === 'weekly') durationDays = 7;
+    else if (type === 'monthly') durationDays = 30;
+    else return res.status(400).json({ message: 'Invalid subscription type' });
+
     const expiry = new Date();
-    if (plan === 'daily') expiry.setDate(expiry.getDate() + 1);
-    if (plan === 'weekly') expiry.setDate(expiry.getDate() + 7);
-    if (plan === 'monthly') expiry.setDate(expiry.getDate() + 30);
+    expiry.setDate(expiry.getDate() + durationDays);
 
     user.subscriptionStatus = 'active';
+    user.subscriptionType = type;
     user.subscriptionExpiry = expiry;
     await user.save();
 
-    res.json({ success: true, subscriptionStatus: user.subscriptionStatus, expiry: user.subscriptionExpiry });
+    res.json({ 
+      success: true, 
+      message: `Subscribed to ${type} plan successfully`,
+      subscriptionStatus: user.subscriptionStatus, 
+      expiry: user.subscriptionExpiry 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }

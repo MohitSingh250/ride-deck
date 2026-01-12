@@ -44,7 +44,16 @@ const userSchema = new mongoose.Schema({
     enum: ['active', 'expired', 'none'],
     default: 'none',
   },
+  subscriptionType: {
+    type: String,
+    enum: ['daily', 'weekly', 'monthly', 'none'],
+    default: 'none',
+  },
   subscriptionExpiry: Date,
+  autoRenew: {
+    type: Boolean,
+    default: false,
+  },
   isOnline: {
     type: Boolean,
     default: false,

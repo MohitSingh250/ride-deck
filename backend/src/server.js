@@ -55,12 +55,21 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/driver', require('./routes/driver'));
-app.use('/api/rides', require('./routes/rides'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/reviews', require('./routes/reviews'));
-app.use('/api/admin', require('./routes/admin'));
+const authRoutes = require('./routes/auth');
+const driverRoutes = require('./routes/driver');
+const rideRoutes = require('./routes/rides');
+const userRoutes = require('./routes/users');
+const reviewRoutes = require('./routes/reviews');
+const adminRoutes = require('./routes/admin');
+const brandRoutes = require('./routes/brand');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/driver', driverRoutes);
+app.use('/api/rides', rideRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/brands', brandRoutes);
 
 app.get('/', (req, res) => {
   res.send('Ride Deck API is running...');

@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #000000; /* Pure Black */
-  --color-secondary: #FFFFFF; /* Pure White */
-  --color-accent: #F3F4F6; /* Light Gray */
-  --color-text-main: #111827; /* Dark Gray */
-  --color-text-muted: #6B7280; /* Medium Gray */
+  --color-primary: #0F172A; /* Deep Indigo */
+  --color-secondary: #FFFFFF;
+  --color-accent: #6366F1; /* Vibrant Indigo */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-text-main: #1E293B;
+  --color-text-muted: #64748B;
   
   --animate-fade-in: fade-in 0.5s ease-out;
   --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 
   @keyframes fade-in {
     0% { opacity: 0; }
@@ -18,6 +22,22 @@
     0% { transform: translateY(20px); opacity: 0; }
     100% { transform: translateY(0); opacity: 1; }
   }
+}
+
+.glass {
+  @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-xl;
+}
+
+.glass-dark {
+  @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+}
+
+.premium-gradient {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+}
+
+.accent-gradient {
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
 }
 
 body {
