@@ -24,91 +24,143 @@ const Home = () => {
   // --- PUBLIC LANDING PAGE (Not Logged In) ---
   if (!user) {
     return (
-        <div className="pt-16 min-h-screen bg-white font-sans">
-            {/* Split Hero Section */}
-            <div className="relative bg-black text-white overflow-hidden min-h-[90vh] flex flex-col lg:flex-row">
-                {/* Background Image */}
-                <div className="absolute inset-0 z-0 opacity-30">
-                    <img 
-                        src="https://images.unsplash.com/photo-1758708312845-91ebc394cf27?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDZ8fGlsbHVzdHJhdGlvbiUyMG1pbmltYWxpc3R8ZW58MHx8MHx8fDA%3D" 
-                        alt="Background" 
-                        className="w-full h-full object-cover" 
-                    />
+        <div className="pt-20 min-h-screen bg-slate-50 font-sans overflow-hidden">
+            {/* High-Impact Hero Section */}
+            <div className="relative min-h-[95vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+                {/* Background Elements */}
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-100 rounded-full blur-[120px] opacity-60 animate-pulse-slow"></div>
+                    <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-purple-100 rounded-full blur-[100px] opacity-40"></div>
                 </div>
 
-                {/* Left Side: Rider */}
-                <div className="flex-1 relative z-10 flex items-center justify-center p-8 lg:p-16 border-b lg:border-b-0 lg:border-r border-gray-800 bg-black/40 backdrop-blur-sm hover:bg-black/30 transition-colors group">
-                    <div className="max-w-md text-center lg:text-left">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white text-black mb-6 group-hover:scale-110 transition-transform">
-                            <User className="h-8 w-8" />
+                <div className="max-w-7xl mx-auto relative z-10 grid lg:grid-cols-2 gap-16 items-center">
+                    <motion.div 
+                        initial={{ opacity: 0, x: -50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="text-center lg:text-left"
+                    >
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full mb-8">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                            </span>
+                            <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">The Future of Mobility</span>
                         </div>
-                        <h2 className="text-4xl md:text-6xl font-black mb-4 leading-tight">
-                            Get a ride<br/>in minutes.
-                        </h2>
-                        <p className="text-xl text-gray-300 mb-8">
-                            Go anywhere, get anything. Reliable rides at the tap of a button.
+                        
+                        <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-slate-900 leading-[1.1] tracking-tight mb-8">
+                            Ride the <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Revolution.</span>
+                        </h1>
+                        
+                        <p className="text-xl text-slate-500 mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                            Experience the next generation of ride-hailing. Zero commission for drivers, premium experience for riders. Transparent, fast, and reliable.
                         </p>
-                        <Link 
-                            to="/login" 
-                            className="inline-flex items-center px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all transform hover:-translate-y-1"
-                        >
-                            Ride with us <ArrowRight className="ml-2 h-5 w-5" />
-                        </Link>
-                    </div>
-                </div>
 
-                {/* Right Side: Driver */}
-                <div className="flex-1 relative z-10 flex items-center justify-center p-8 lg:p-16 bg-black/40 backdrop-blur-sm hover:bg-black/30 transition-colors group">
-                    <div className="max-w-md text-center lg:text-left">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white text-black mb-6 group-hover:scale-110 transition-transform">
-                            <Car className="h-8 w-8" />
+                        <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+                            <Link 
+                                to="/signup" 
+                                className="w-full sm:w-auto px-10 py-5 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all transform hover:-translate-y-1 shadow-2xl shadow-indigo-200 flex items-center justify-center group"
+                            >
+                                Get Started Now
+                                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                            <Link 
+                                to="/login" 
+                                className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 border border-slate-200 font-black rounded-2xl hover:bg-slate-50 transition-all transform hover:-translate-y-1 shadow-sm flex items-center justify-center"
+                            >
+                                Sign In
+                            </Link>
                         </div>
-                        <h2 className="text-4xl md:text-6xl font-black mb-4 leading-tight">
-                            Earn on<br/>your terms.
-                        </h2>
-                        <p className="text-xl text-gray-300 mb-8">
-                            Drive when you want, make what you need. No boss, no limits.
-                        </p>
-                        <Link 
-                            to="/signup" 
-                            state={{ role: 'driver' }}
-                            className="inline-flex items-center px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white hover:text-black transition-all transform hover:-translate-y-1"
-                        >
-                            Sign up to drive <ArrowRight className="ml-2 h-5 w-5" />
-                        </Link>
-                    </div>
+
+                        <div className="mt-12 flex items-center justify-center lg:justify-start gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                            <div className="flex flex-col">
+                                <span className="text-2xl font-black text-slate-900">10M+</span>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Riders</span>
+                            </div>
+                            <div className="w-px h-8 bg-slate-200"></div>
+                            <div className="flex flex-col">
+                                <span className="text-2xl font-black text-slate-900">500K+</span>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Drivers</span>
+                            </div>
+                            <div className="w-px h-8 bg-slate-200"></div>
+                            <div className="flex flex-col">
+                                <span className="text-2xl font-black text-slate-900">100%</span>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Commission Free</span>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
+                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className="relative hidden lg:block"
+                    >
+                        <div className="relative z-10 bg-white p-4 rounded-[3rem] shadow-2xl border border-slate-100 transform hover:scale-[1.02] transition-transform duration-500">
+                            <img 
+                                src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.1.0" 
+                                alt="Premium Ride" 
+                                className="w-full h-[600px] object-cover rounded-[2.5rem]" 
+                            />
+                            {/* Floating Stats Card */}
+                            <div className="absolute -bottom-10 -left-10 glass p-6 rounded-3xl animate-bounce-slow">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600">
+                                        <Banknote className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Earnings Today</p>
+                                        <p className="text-2xl font-black text-slate-900">$428.50</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Floating User Card */}
+                            <div className="absolute -top-10 -right-10 glass p-6 rounded-3xl animate-pulse-slow">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                                        <Star className="h-6 w-6 fill-indigo-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Top Rated</p>
+                                        <p className="text-2xl font-black text-slate-900">4.98</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Decorative Rings */}
+                        <div className="absolute -inset-10 border-2 border-indigo-100 rounded-[4rem] -z-10 animate-pulse-slow"></div>
+                        <div className="absolute -inset-20 border border-purple-50 rounded-[5rem] -z-20 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+                    </motion.div>
                 </div>
             </div>
 
-            {/* Value Props */}
-            <div className="py-24 bg-white">
+            {/* Features Grid */}
+            <div className="py-32 bg-white relative z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-black text-black mb-4">Why choose RideDeck?</h2>
-                        <p className="text-xl text-gray-500">The smartest way to move and earn.</p>
+                    <div className="text-center mb-24">
+                        <h2 className="text-xs font-black text-indigo-600 uppercase tracking-[0.3em] mb-4">Why RideDeck</h2>
+                        <h3 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight">Built for the modern world.</h3>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <ShieldCheck className="h-8 w-8 text-black" />
-                            </div>
-                            <h3 className="text-xl font-bold mb-3">Safety First</h3>
-                            <p className="text-gray-500">Verified drivers, real-time tracking, and 24/7 support for your peace of mind.</p>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <Banknote className="h-8 w-8 text-black" />
-                            </div>
-                            <h3 className="text-xl font-bold mb-3">Best Prices</h3>
-                            <p className="text-gray-500">Transparent pricing with no hidden fees. Know exactly what you pay or earn.</p>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <Globe className="h-8 w-8 text-black" />
-                            </div>
-                            <h3 className="text-xl font-bold mb-3">Available Everywhere</h3>
-                            <p className="text-gray-500">From city centers to suburbs, we've got you covered wherever you go.</p>
-                        </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {[
+                            { icon: ShieldCheck, title: "Safety First", desc: "Every ride is tracked and every driver is verified for your peace of mind.", color: "bg-blue-50 text-blue-600" },
+                            { icon: Banknote, title: "Fair Pricing", desc: "No hidden fees or surge pricing. Just honest, transparent fares every time.", color: "bg-green-50 text-green-600" },
+                            { icon: Globe, title: "Global Reach", desc: "Available in over 500 cities worldwide, ready whenever you are.", color: "bg-purple-50 text-purple-600" }
+                        ].map((feature, i) => (
+                            <motion.div 
+                                key={i}
+                                whileHover={{ y: -10 }}
+                                className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-2xl hover:border-transparent transition-all duration-300"
+                            >
+                                <div className={`w-16 h-16 ${feature.color} rounded-2xl flex items-center justify-center mb-8 shadow-sm`}>
+                                    <feature.icon className="h-8 w-8" />
+                                </div>
+                                <h4 className="text-2xl font-black text-slate-900 mb-4">{feature.title}</h4>
+                                <p className="text-slate-500 leading-relaxed">{feature.desc}</p>
+                            </motion.div>
+                        ))}
                     </div>
                 </div>
             </div>

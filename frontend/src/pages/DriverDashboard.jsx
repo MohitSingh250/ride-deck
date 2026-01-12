@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Map from '../components/Map';
+import Modal from '../components/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DriverDashboard = () => {
@@ -398,64 +399,46 @@ const DriverDashboard = () => {
       </div>
 
       {/* Subscription Modal */}
-      <AnimatePresence>
-        {showSubscriptionModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-50 flex items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 50 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-[3.5rem] p-12 shadow-2xl max-w-4xl w-full relative overflow-hidden"
+      <Modal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        title="Choose Your Plan"
+        maxWidth="max-w-4xl"
+      >
+        <div className="text-center mb-12">
+          <p className="text-slate-500 font-bold">Keep 100% of your earnings. No commissions, ever.</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            { id: 'daily', name: 'Daily', price: '₹49', desc: 'Perfect for part-time' },
+            { id: 'weekly', name: 'Weekly', price: '₹299', desc: 'Most popular choice', popular: true },
+            { id: 'monthly', name: 'Monthly', price: '₹999', desc: 'Best value for pros' }
+          ].map(plan => (
+            <div 
+              key={plan.id}
+              className={`relative p-8 rounded-[2.5rem] border-2 transition-all ${plan.popular ? 'border-indigo-600 bg-indigo-50/30' : 'border-slate-100 hover:border-slate-200'}`}
             >
+              {plan.popular && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  Popular
+                </div>
+              )}
+              <h3 className="text-xl font-black text-slate-900 mb-2">{plan.name}</h3>
+              <p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">{plan.desc}</p>
+              <div className="mb-8">
+                <span className="text-4xl font-black text-slate-900">{plan.price}</span>
+              </div>
               <button 
-                onClick={() => setShowSubscriptionModal(false)}
-                className="absolute top-8 right-8 p-3 hover:bg-slate-100 rounded-full transition-colors"
+                onClick={() => handleSubscribe(plan.id)}
+                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${plan.popular ? 'accent-gradient text-white shadow-xl shadow-indigo-200' : 'bg-slate-900 text-white'}`}
               >
-                <AlertCircle className="h-6 w-6 text-slate-400" />
+                Select Plan
               </button>
-
-              <div className="text-center mb-12">
-                <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-4">Choose Your Plan</h2>
-                <p className="text-slate-500 font-bold">Keep 100% of your earnings. No commissions, ever.</p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                {[
-                  { id: 'daily', name: 'Daily', price: '₹49', desc: 'Perfect for part-time' },
-                  { id: 'weekly', name: 'Weekly', price: '₹299', desc: 'Most popular choice', popular: true },
-                  { id: 'monthly', name: 'Monthly', price: '₹999', desc: 'Best value for pros' }
-                ].map(plan => (
-                  <div 
-                    key={plan.id}
-                    className={`relative p-8 rounded-[2.5rem] border-2 transition-all ${plan.popular ? 'border-indigo-600 bg-indigo-50/30' : 'border-slate-100 hover:border-slate-200'}`}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        Popular
-                      </div>
-                    )}
-                    <h3 className="text-xl font-black text-slate-900 mb-2">{plan.name}</h3>
-                    <p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">{plan.desc}</p>
-                    <div className="mb-8">
-                      <span className="text-4xl font-black text-slate-900">{plan.price}</span>
-                    </div>
-                    <button 
-                      onClick={() => handleSubscribe(plan.id)}
-                      className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${plan.popular ? 'accent-gradient text-white shadow-xl shadow-indigo-200' : 'bg-slate-900 text-white'}`}
-                    >
-                      Select Plan
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };

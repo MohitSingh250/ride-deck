@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Map from '../components/Map';
+import Modal from '../components/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const RiderDashboard = () => {
@@ -457,90 +458,76 @@ const RiderDashboard = () => {
       </div>
 
       {/* Modals */}
-      <AnimatePresence>
-        {showCancelConfirm && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[3rem] p-12 shadow-2xl max-w-sm w-full text-center"
+      <Modal
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        title="Cancel Ride?"
+        maxWidth="max-w-md"
+      >
+        <div className="text-center">
+          <div className="h-20 w-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-8">
+            <X className="h-10 w-10 text-rose-500" />
+          </div>
+          <p className="text-slate-500 font-bold mb-10 leading-relaxed">
+            Are you sure? Your driver is already on the way.
+          </p>
+          <div className="flex flex-col gap-4">
+            <button 
+              onClick={handleCancelRide}
+              className="w-full py-5 bg-rose-500 text-white font-black rounded-2xl hover:bg-rose-600 transition-all shadow-xl shadow-rose-200 uppercase tracking-widest"
             >
-              <div className="h-20 w-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                <X className="h-10 w-10 text-rose-500" />
-              </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-4">Cancel Ride?</h3>
-              <p className="text-slate-500 font-bold mb-10 leading-relaxed">Are you sure? Your driver is already on the way.</p>
-              <div className="flex flex-col gap-4">
-                <button 
-                  onClick={handleCancelRide}
-                  className="w-full py-5 bg-rose-500 text-white font-black rounded-2xl hover:bg-rose-600 transition-all shadow-xl shadow-rose-200 uppercase tracking-widest"
-                >
-                  Yes, Cancel
-                </button>
-                <button 
-                  onClick={() => setShowCancelConfirm(false)}
-                  className="w-full py-5 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest"
-                >
-                  No, Keep
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {showRatingModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[4rem] p-12 shadow-2xl max-w-md w-full text-center"
+              Yes, Cancel
+            </button>
+            <button 
+              onClick={() => setShowCancelConfirm(false)}
+              className="w-full py-5 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest"
             >
-              <div className="h-24 w-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                <CheckCircle className="h-12 w-12 text-emerald-500" />
-              </div>
-              <h3 className="text-3xl font-black text-slate-900 mb-2">Arrived!</h3>
-              <p className="text-slate-500 font-bold mb-10">How was your trip with {currentRide?.driverId?.name}?</p>
-              
-              <div className="flex justify-center gap-3 mb-10">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    onClick={() => setRating(star)}
-                    className={`h-12 w-12 cursor-pointer transition-all ${star <= rating ? 'text-amber-400 fill-amber-400 scale-110' : 'text-slate-100'}`}
-                  />
-                ))}
-              </div>
+              No, Keep
+            </button>
+          </div>
+        </div>
+      </Modal>
 
-              <textarea
-                className="w-full p-6 bg-slate-50 border-2 border-transparent rounded-[2rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold mb-10 resize-none"
-                placeholder="Any feedback for the driver?"
-                rows="3"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              ></textarea>
+      <Modal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        title="Arrived!"
+        maxWidth="max-w-md"
+      >
+        <div className="text-center">
+          <div className="h-24 w-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8">
+            <CheckCircle className="h-12 w-12 text-emerald-500" />
+          </div>
+          <p className="text-slate-500 font-bold mb-10">
+            How was your trip with {currentRide?.driverId?.name}?
+          </p>
+          
+          <div className="flex justify-center gap-3 mb-10">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                onClick={() => setRating(star)}
+                className={`h-12 w-12 cursor-pointer transition-all ${star <= rating ? 'text-amber-400 fill-amber-400 scale-110' : 'text-slate-100'}`}
+              />
+            ))}
+          </div>
 
-              <button 
-                onClick={submitReview}
-                className="w-full py-6 accent-gradient text-white font-black rounded-[2rem] hover:scale-[1.02] transition-all shadow-2xl shadow-indigo-200 uppercase tracking-widest"
-              >
-                Complete Review
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <textarea
+            className="w-full p-6 bg-slate-50 border-2 border-transparent rounded-[2rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold mb-10 resize-none"
+            placeholder="Any feedback for the driver?"
+            rows="3"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          ></textarea>
+
+          <button 
+            onClick={submitReview}
+            className="w-full py-6 accent-gradient text-white font-black rounded-[2rem] hover:scale-[1.02] transition-all shadow-2xl shadow-indigo-200 uppercase tracking-widest"
+          >
+            Complete Review
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };
