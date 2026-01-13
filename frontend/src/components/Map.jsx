@@ -40,63 +40,89 @@ const carIcon = L.divIcon({
 const Routing = ({ pickup, dropoff, onRouteFound }) => {
   const map = useMap();
   const routingControlRef = useRef(null);
+  const onRouteFoundRef = useRef(onRouteFound);
+
+  // Keep callback ref up to date
+  useEffect(() => {
+    onRouteFoundRef.current = onRouteFound;
+  }, [onRouteFound]);
 
   useEffect(() => {
-    if (!map || !pickup || !dropoff) return;
+    if (!map) return;
 
-    if (routingControlRef.current && map) {
-      try {
-        map.removeControl(routingControlRef.current);
-      } catch (e) {
-        console.warn('Error removing existing routing control:', e);
-      }
-    }
+    let control;
+    try {
+      control = L.Routing.control({
+        waypoints: [
+          L.latLng(pickup[0], pickup[1]),
+          L.latLng(dropoff[0], dropoff[1])
+        ],
+        lineOptions: {
+          styles: [{ color: '#6366F1', weight: 6, opacity: 0.8 }]
+        },
+        show: false,
+        addWaypoints: false,
+        routeWhileDragging: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        createMarker: () => null
+      }).addTo(map);
 
-    const routingControl = L.Routing.control({
-      waypoints: [
-        L.latLng(pickup[0], pickup[1]),
-        L.latLng(dropoff[0], dropoff[1])
-      ],
-      lineOptions: {
-        styles: [{ color: '#6366F1', weight: 6, opacity: 0.8 }]
-      },
-      show: false,
-      addWaypoints: false,
-      routeWhileDragging: false,
-      draggableWaypoints: false,
-      fitSelectedRoutes: true,
-      createMarker: () => null
-    });
-
-    routingControl.on('routesfound', (e) => {
-      const routes = e.routes;
-      if (routes && routes.length > 0) {
-        const summary = routes[0].summary;
-        const coordinates = routes[0].coordinates;
-        if (onRouteFound) {
-          onRouteFound({
-            distance: summary.totalDistance,
-            duration: summary.totalTime,
-            coordinates: coordinates
-          });
+      control.on('routesfound', (e) => {
+        const routes = e.routes;
+        if (routes && routes.length > 0) {
+          const summary = routes[0].summary;
+          const coordinates = routes[0].coordinates;
+          if (onRouteFoundRef.current) {
+            onRouteFoundRef.current({
+              distance: summary.totalDistance,
+              duration: summary.totalTime,
+              coordinates: coordinates
+            });
+          }
         }
-      }
-    });
+      });
 
-    routingControl.addTo(map);
-    routingControlRef.current = routingControl;
+      control.on('routingerror', (e) => {
+        // Silently handle routing errors to prevent crashes
+        console.debug('Routing error (expected during rapid updates):', e.error);
+      });
+
+      routingControlRef.current = control;
+    } catch (err) {
+      console.error('Error initializing routing control:', err);
+    }
 
     return () => {
       if (routingControlRef.current && map) {
         try {
-          map.removeControl(routingControlRef.current);
+          // Check if the control is still on the map before removing
+          if (map.hasLayer && typeof map.removeControl === 'function') {
+            map.removeControl(routingControlRef.current);
+          }
         } catch (e) {
-          console.warn('Error removing routing control:', e);
+          // Ignore cleanup errors
         }
         routingControlRef.current = null;
       }
     };
-  }, [map, pickup, dropoff, onRouteFound]);
+  }, [map]); // Only initialize once
+
+  useEffect(() => {
+    if (routingControlRef.current && pickup && dropoff) {
+      try {
+        // Ensure the control still has a plan and a map
+        if (routingControlRef.current.getPlan()) {
+          routingControlRef.current.setWaypoints([
+            L.latLng(pickup[0], pickup[1]),
+            L.latLng(dropoff[0], dropoff[1])
+          ]);
+        }
+      } catch (err) {
+        console.warn('Error updating waypoints:', err);
+      }
+    }
+  }, [pickup, dropoff]);
 
   return null;
 };
@@ -117,6 +143,7 @@ const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dro
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {!pickup && <RecenterAutomatically lat={center[0]} lng={center[1]} />}
+      {pickup && !dropoff && <RecenterAutomatically lat={pickup[0]} lng={pickup[1]} />}
       
       {markers.map((marker, index) => {
         let icon = DefaultIcon;
@@ -129,6 +156,12 @@ const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dro
           </Marker>
         );
       })}
+
+      {pickup && !dropoff && (
+        <Marker position={pickup} icon={DefaultIcon}>
+          <Popup>Pickup Location</Popup>
+        </Marker>
+      )}
 
       {pickup && dropoff && <Routing pickup={pickup} dropoff={dropoff} onRouteFound={onRouteFound} />}
       {children}

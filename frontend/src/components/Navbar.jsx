@@ -46,12 +46,14 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-8">
             {user ? (
               <>
-                <Link 
-                  to={user.role === 'driver' ? '/driver-dashboard' : '/rider-dashboard'}
-                  className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors"
-                >
-                  {user.role === 'driver' ? 'Driver Portal' : 'Book a Ride'}
-                </Link>
+                {user.role !== 'admin' && (
+                  <Link 
+                    to={user.role === 'driver' ? '/driver-dashboard' : '/rider-dashboard'}
+                    className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors"
+                  >
+                    {user.role === 'driver' ? 'Driver Portal' : 'Book a Ride'}
+                  </Link>
+                )}
                 
                 <div className="relative">
                   <button
@@ -85,28 +87,32 @@ const Navbar = () => {
                               <UserIcon className="h-4 w-4" />
                               Profile Settings
                             </Link>
-                            <Link to="/history" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                              <History className="h-4 w-4" />
-                              Ride History
-                            </Link>
-                            <Link to="/wallet" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                              <WalletIcon className="h-4 w-4" />
-                              My Wallet
-                            </Link>
-                            {user.role === 'rider' && (
-                              <Link to="/deals" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                <Gift className="h-4 w-4" />
-                                My Rewards
-                              </Link>
+                            {user.role !== 'admin' && (
+                              <>
+                                <Link to="/history" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                  <History className="h-4 w-4" />
+                                  Ride History
+                                </Link>
+                                <Link to="/wallet" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                  <WalletIcon className="h-4 w-4" />
+                                  My Wallet
+                                </Link>
+                                {user.role === 'rider' && (
+                                  <Link to="/deals" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                    <Gift className="h-4 w-4" />
+                                    My Rewards
+                                  </Link>
+                                )}
+                                <Link to="/referral" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                  <Gift className="h-4 w-4" />
+                                  Refer & Earn
+                                </Link>
+                                <Link to="/help" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                  <HelpCircle className="h-4 w-4" />
+                                  Help & Support
+                                </Link>
+                              </>
                             )}
-                            <Link to="/referral" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                              <Gift className="h-4 w-4" />
-                              Refer & Earn
-                            </Link>
-                            <Link to="/help" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                              <HelpCircle className="h-4 w-4" />
-                              Help & Support
-                            </Link>
                             {user.role === 'admin' && (
                               <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
                                 <Shield className="h-4 w-4" />

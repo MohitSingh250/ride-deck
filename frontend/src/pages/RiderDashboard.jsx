@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Clock, Star, Car, Bike, Truck, CheckCircle, Bell, Gift, Map as MapIcon, X, Wallet as WalletIcon, AlertCircle, Shield, Share2, MessageSquare, Send } from 'lucide-react';
+import { MapPin, Navigation, Clock, Star, Car, Bike, Truck, CheckCircle, Bell, Gift, Map as MapIcon, X, Wallet as WalletIcon, AlertCircle, Shield, Share2, MessageSquare, Send, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -21,6 +21,7 @@ const RiderDashboard = () => {
   const [calculatedFares, setCalculatedFares] = useState({ bike: 0, auto: 0, cab: 0 });
   const [brands, setBrands] = useState([]);
   const [nearbyBrand, setNearbyBrand] = useState(null);
+  const [searchingMessage, setSearchingMessage] = useState('Finding your ride...');
   const [showBrandNotification, setShowBrandNotification] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -106,6 +107,7 @@ const RiderDashboard = () => {
       setLastRide(ride);
       setCurrentRide(null);
       setShowReceipt(true);
+      setShowRatingModal(true); // Show rating modal along with receipt
       toast.success('Ride completed! Receipt generated.');
     });
 
@@ -122,6 +124,8 @@ const RiderDashboard = () => {
       if (ride.status === 'cancelled') {
         setCurrentRide(null);
         setBookingStatus('');
+        setRouteDetails(null);
+        setCalculatedFares(null);
         toast.error('Ride cancelled');
       }
     });
@@ -131,10 +135,35 @@ const RiderDashboard = () => {
       if (!showChat) toast.success(`New message from ${data.senderName}`);
     });
 
+    socket.on('location-update', ({ location }) => {
+      setDriverLocation([location.lat, location.lng]);
+    });
+
+    socket.on('driver-arrived', () => {
+      toast.success('Your driver has arrived at the pickup location!', {
+        duration: 5000,
+        icon: '🚗'
+      });
+    });
+
+    const searchingMessages = [
+      'Finding your ride...',
+      'Contacting nearby drivers...',
+      'Checking vehicle availability...',
+      'Almost there...',
+      'Still searching for the best driver for you...'
+    ];
+    let msgIndex = 0;
+    const msgInterval = setInterval(() => {
+      setSearchingMessage(searchingMessages[msgIndex]);
+      msgIndex = (msgIndex + 1) % searchingMessages.length;
+    }, 3000);
+
     return () => {
       socket.off('rideAccepted');
       socket.off('rideStatusUpdate');
       socket.off('receive-message');
+      clearInterval(msgInterval);
     };
   }, [socket, showChat]);
 
@@ -146,45 +175,104 @@ const RiderDashboard = () => {
   }, [currentRide?.status]);
 
   useEffect(() => {
-    if (currentRide?.status === 'started' && routeDetails?.coordinates) {
-      let index = 0;
-      const interval = setInterval(() => {
-        if (index < routeDetails.coordinates.length) {
-          const coord = routeDetails.coordinates[index];
-          setDriverLocation([coord.lat, coord.lng]);
-          
-          // Check for nearby brands
-          brands.forEach(brand => {
-            if (notifiedBrands.includes(brand._id)) return;
+    if (currentRide?.status === 'started' && driverLocation) {
+      const coord = { lat: driverLocation[0], lng: driverLocation[1] };
+      
+      // Check for nearby brands
+      brands.forEach(brand => {
+        if (notifiedBrands.includes(brand._id)) return;
 
-            brand.locations.forEach(loc => {
-              const dist = Math.sqrt(Math.pow(coord.lat - loc.lat, 2) + Math.pow(coord.lng - loc.lng, 2));
-              if (dist < 0.005) { // Roughly 500m
-                setNearbyBrand(brand);
-                setShowBrandNotification(true);
-                setNotifiedBrands(prev => [...prev, brand._id]);
-              }
-            });
-          });
-
-          index += Math.ceil(routeDetails.coordinates.length / 100);
-        } else {
-          clearInterval(interval);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
+        brand.locations.forEach(loc => {
+          const dist = Math.sqrt(Math.pow(coord.lat - loc.lat, 2) + Math.pow(coord.lng - loc.lng, 2));
+          if (dist < 0.005) { // Roughly 500m
+            setNearbyBrand(brand);
+            setShowBrandNotification(true);
+            setNotifiedBrands(prev => [...prev, brand._id]);
+          }
+        });
+      });
     }
-  }, [currentRide?.status, routeDetails, brands, notifiedBrands]);
+  }, [currentRide?.status, driverLocation, brands, notifiedBrands]);
 
-  const handleRouteFound = (details) => {
-    setRouteDetails(details);
-    const distanceKm = details.distance / 1000;
-    setCalculatedFares({
-      bike: Math.round(20 + distanceKm * 8),
-      auto: Math.round(30 + distanceKm * 12),
-      cab: Math.round(50 + distanceKm * 18),
-    });
+  const [pickupSuggestions, setPickupSuggestions] = useState([]);
+  const [dropoffSuggestions, setDropoffSuggestions] = useState([]);
+
+  const searchLocation = async (query, setSuggestions) => {
+    if (query.length < 3) return;
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&countrycodes=in`);
+      const data = await response.json();
+      setSuggestions(data);
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
   };
+
+  const handleSelectLocation = (loc, type) => {
+    if (type === 'pickup') {
+      setPickup(loc.display_name);
+      setPickupSuggestions([]);
+      setRouteDetails(prev => ({ ...prev, pickup: { lat: parseFloat(loc.lat), lng: parseFloat(loc.lon) } }));
+    } else {
+      setDropoff(loc.display_name);
+      setDropoffSuggestions([]);
+      setRouteDetails(prev => ({ ...prev, dropoff: { lat: parseFloat(loc.lat), lng: parseFloat(loc.lon) } }));
+    }
+  };
+
+  const [fareBreakups, setFareBreakups] = useState({});
+
+  const handleRouteFound = React.useCallback(async (details) => {
+    setRouteDetails(prev => ({
+      ...prev,
+      ...details
+    }));
+    
+    try {
+      // Use the latest coordinates from the state or props
+      // Since we're in a callback, we can't easily get the latest state without a ref or functional update
+      // But we know the pickup/dropoff are in the parent scope or we can pass them to handleRouteFound
+      
+      const farePromises = ['bike', 'auto', 'cab'].map(type => 
+        fetch(`${API_URL}/api/rides/estimate-fare`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.token}`
+          },
+          body: JSON.stringify({
+            distance: details.distance,
+            duration: details.duration,
+            vehicleType: type,
+            // These will be captured from the closure
+            pickupCoords: routeDetails?.pickup,
+            dropoffCoords: routeDetails?.dropoff
+          })
+        }).then(res => res.json())
+      );
+
+      const results = await Promise.all(farePromises);
+      setCalculatedFares({
+        bike: results[0].fare,
+        auto: results[1].fare,
+        cab: results[2].fare
+      });
+      setFareBreakups({
+        bike: results[0].breakup,
+        auto: results[1].breakup,
+        cab: results[2].breakup
+      });
+    } catch (error) {
+      console.error('Error estimating fares:', error);
+      // Fallback
+      const distanceKm = details.distance / 1000;
+      setCalculatedFares({
+        bike: Math.round(20 + distanceKm * 8),
+        auto: Math.round(30 + distanceKm * 12),
+        cab: Math.round(50 + distanceKm * 18),
+      });
+    }
+  }, [API_URL, user.token, routeDetails?.pickup, routeDetails?.dropoff]);
 
   const handleSOS = () => {
     if (!currentRide) return;
@@ -288,15 +376,23 @@ const RiderDashboard = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`
         },
-        body: JSON.stringify({ rideId: currentRide._id, status: 'cancelled' }),
+        body: JSON.stringify({ 
+          rideId: currentRide._id, 
+          status: 'cancelled',
+          originalDriverId: currentRide.driverId?._id || currentRide.driverId
+        }),
       });
       
       if (response.ok) {
         setCurrentRide(null);
         setBookingStatus('');
+        setRouteDetails(null);
+        setCalculatedFares(null);
+        toast.success('Ride cancelled successfully');
       }
     } catch (e) {
       console.error(e);
+      toast.error('Failed to cancel ride');
     }
   };
 
@@ -354,14 +450,17 @@ const RiderDashboard = () => {
       {/* Map Background */}
       <div className="absolute inset-0 z-0">
         <Map 
-          center={currentRide?.pickup?.lat ? [currentRide.pickup.lat, currentRide.pickup.lng] : [28.6139, 77.2090]} 
-          pickup={currentRide?.pickup?.lat ? [currentRide.pickup.lat, currentRide.pickup.lng] : null}
-          dropoff={currentRide?.dropoff?.lat ? [currentRide.dropoff.lat, currentRide.dropoff.lng] : null}
-          markers={[
+          center={currentRide?.pickup?.lat ? [currentRide.pickup.lat, currentRide.pickup.lng] : routeDetails?.pickup?.lat ? [routeDetails.pickup.lat, routeDetails.pickup.lng] : [28.6139, 77.2090]} 
+          pickup={React.useMemo(() => currentRide?.pickup?.lat ? [currentRide.pickup.lat, currentRide.pickup.lng] : routeDetails?.pickup?.lat ? [routeDetails.pickup.lat, routeDetails.pickup.lng] : null, [currentRide?.pickup, routeDetails?.pickup])}
+          dropoff={React.useMemo(() => currentRide?.dropoff?.lat ? [currentRide.dropoff.lat, currentRide.dropoff.lng] : routeDetails?.dropoff?.lat ? [routeDetails.dropoff.lat, routeDetails.dropoff.lng] : null, [currentRide?.dropoff, routeDetails?.dropoff])}
+          markers={React.useMemo(() => [
             ...(currentRide ? [
               { position: [currentRide.pickup.lat, currentRide.pickup.lng], popup: 'Pickup' },
               { position: [currentRide.dropoff.lat, currentRide.dropoff.lng], popup: 'Dropoff' }
-            ] : []),
+            ] : [
+              ...(routeDetails?.pickup?.lat ? [{ position: [routeDetails.pickup.lat, routeDetails.pickup.lng], popup: 'Pickup' }] : []),
+              ...(routeDetails?.dropoff?.lat ? [{ position: [routeDetails.dropoff.lat, routeDetails.dropoff.lng], popup: 'Dropoff' }] : [])
+            ]),
             ...(driverLocation ? [{ position: driverLocation, popup: 'Driver', icon: 'car' }] : []),
             ...brands.flatMap(brand => brand.locations.map(loc => ({
               position: [loc.lat, loc.lng],
@@ -369,7 +468,7 @@ const RiderDashboard = () => {
               icon: 'brand',
               logo: brand.logo
             })))
-          ]}
+          ], [currentRide, routeDetails, driverLocation, brands])}
           onRouteFound={handleRouteFound}
         />
       </div>
@@ -428,7 +527,9 @@ const RiderDashboard = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none mb-2">
-                      {currentRide.status === 'searching' ? 'Finding your ride' : 'On our way'}
+                      {currentRide.status === 'searching' ? searchingMessage : 
+                       currentRide.status === 'accepted' ? 'Driver is on the way' :
+                       currentRide.status === 'arrived' ? 'Driver has arrived' : 'On our way'}
                     </h2>
                     <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
                       {currentRide.status}
@@ -498,6 +599,26 @@ const RiderDashboard = () => {
                   </div>
                 </div>
 
+                {currentRide.status === 'started' && (
+                  <div className="mt-6 p-6 bg-indigo-50 rounded-[2rem] border border-indigo-100 space-y-4">
+                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      In-Ride Experience
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button className="p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2 group">
+                        <Music className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                        <span className="text-[10px] font-black text-slate-600">Curated Audio</span>
+                      </button>
+                      <button className="p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2 group">
+                        <QrCode className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                        <span className="text-[10px] font-black text-slate-600">QR Rewards</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 text-center italic">Opt-in for exclusive partner offers</p>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <button
                     onClick={handleSOS}
@@ -552,99 +673,163 @@ const RiderDashboard = () => {
                 <form onSubmit={handleBook} className="space-y-8">
                   <div className="space-y-4">
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none z-10">
                         <MapPin className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                       </div>
                       <input
                         type="text"
-                        className="block w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold"
-                        placeholder="Pickup Location"
+                        placeholder="Where from?"
                         value={pickup}
-                        onChange={(e) => setPickup(e.target.value)}
+                        onChange={(e) => {
+                          setPickup(e.target.value);
+                          searchLocation(e.target.value, setPickupSuggestions);
+                        }}
+                        className="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-600 rounded-2xl py-5 pl-14 pr-12 text-slate-900 font-bold transition-all outline-none"
                         required
                       />
+                      {pickup && (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setPickup('');
+                            setRouteDetails(prev => ({ ...prev, pickup: null }));
+                          }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full transition-all z-10"
+                        >
+                          <X className="h-4 w-4 text-slate-400" />
+                        </button>
+                      )}
+                      {pickupSuggestions.length > 0 && (
+                        <div className="absolute z-50 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+                          {pickupSuggestions.map((loc, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => handleSelectLocation(loc, 'pickup')}
+                              className="w-full px-6 py-4 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-50 last:border-none transition-colors"
+                            >
+                              {loc.display_name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none z-10">
                         <Navigation className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                       </div>
                       <input
                         type="text"
-                        className="block w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold"
-                        placeholder="Dropoff Location"
+                        placeholder="Where to?"
                         value={dropoff}
-                        onChange={(e) => setDropoff(e.target.value)}
+                        onChange={(e) => {
+                          setDropoff(e.target.value);
+                          searchLocation(e.target.value, setDropoffSuggestions);
+                        }}
+                        className="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-600 rounded-2xl py-5 pl-14 pr-12 text-slate-900 font-bold transition-all outline-none"
                         required
                       />
+                      {dropoff && (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setDropoff('');
+                            setRouteDetails(prev => ({ ...prev, dropoff: null }));
+                          }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full transition-all z-10"
+                        >
+                          <X className="h-4 w-4 text-slate-400" />
+                        </button>
+                      )}
+                      {dropoffSuggestions.length > 0 && (
+                        <div className="absolute z-50 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+                          {dropoffSuggestions.map((loc, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => handleSelectLocation(loc, 'dropoff')}
+                              className="w-full px-6 py-4 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-50 last:border-none transition-colors"
+                            >
+                              {loc.display_name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {routeDetails?.distance && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="flex items-center justify-between p-6 bg-indigo-50 rounded-[2rem] border border-indigo-100"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                          <TrendingUp className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Distance</p>
+                          <p className="text-sm font-black text-slate-900">{(routeDetails.distance / 1000).toFixed(1)} km</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-right">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Est. Time</p>
+                          <p className="text-sm font-black text-slate-900">{Math.round(routeDetails.duration / 60)} mins</p>
+                        </div>
+                        <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                          <Clock className="h-5 w-5 text-indigo-600" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between px-2">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Select Vehicle</p>
-                      <div className="flex items-center gap-2">
-                        <WalletIcon className="h-3 w-3 text-indigo-600" />
-                    <span className={`text-xs font-black ${walletBalance < calculatedFares[selectedVehicle] ? 'text-rose-500' : 'text-indigo-600'}`}>
-                          ₹{walletBalance.toLocaleString()}
-                        </span>
-                      </div>
                     </div>
-                    {/* Referral & Rewards Banner */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-6 rounded-[2.5rem] bg-indigo-600 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-200"
-        >
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-              <Gift className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black">Earn ₹100 for every friend!</h3>
-              <p className="text-sm font-bold text-indigo-100">Invite friends to RideDeck and earn loyalty points on every referral.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden md:block">
-              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Your Points</p>
-              <p className="text-xl font-black">{loyaltyPoints} pts</p>
-            </div>
-            <button
-              onClick={() => navigate('/referral')}
-              className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all whitespace-nowrap"
-            >
-              Refer Now
-            </button>
-          </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                      {vehicles.map((vehicle) => (
-                        <div
-                          key={vehicle.id}
-                          onClick={() => setSelectedVehicle(vehicle.id)}
-                          className={`flex items-center justify-between p-5 rounded-[2rem] cursor-pointer transition-all border-2 ${
-                            selectedVehicle === vehicle.id
-                              ? 'border-indigo-600 bg-indigo-50/50 shadow-lg shadow-indigo-100'
-                              : 'border-transparent bg-slate-50 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-5">
-                            <div className={`p-4 rounded-2xl transition-all ${selectedVehicle === vehicle.id ? 'accent-gradient text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>
-                              <vehicle.icon className="h-7 w-7" />
+                    
+                    <div className="grid grid-cols-1 gap-4">
+                      {vehicles.map((vehicle) => {
+                        const breakup = fareBreakups[vehicle.id];
+                        const eta = vehicle.id === 'bike' ? '2-4' : vehicle.id === 'auto' ? '5-8' : '8-12';
+                        
+                        return (
+                          <div
+                            key={vehicle.id}
+                            onClick={() => setSelectedVehicle(vehicle.id)}
+                            className={`flex items-center justify-between p-5 rounded-[2rem] cursor-pointer transition-all border-2 ${
+                              selectedVehicle === vehicle.id
+                                ? 'border-indigo-600 bg-indigo-50/50 shadow-lg shadow-indigo-100'
+                                : 'border-transparent bg-slate-50 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-5">
+                              <div className={`p-4 rounded-2xl transition-all ${selectedVehicle === vehicle.id ? 'accent-gradient text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>
+                                <vehicle.icon className="h-7 w-7" />
+                              </div>
+                              <div>
+                                <p className="font-black text-slate-900">{vehicle.name}</p>
+                                <p className="text-xs font-bold text-slate-500">{eta} mins away</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-black text-slate-900">{vehicle.name}</p>
-                              <p className="text-xs font-bold text-slate-500">{vehicle.time} away</p>
+                            <div className="text-right">
+                              <p className="font-black text-xl text-slate-900">₹{calculatedFares[vehicle.id] || '--'}</p>
+                              {breakup?.discount > 0 && (
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center justify-end gap-1">
+                                  <Gift className="h-3 w-3" />
+                                  Sponsored
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <span className="font-black text-xl text-slate-900">{vehicle.price}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
-                    {walletBalance < calculatedFares[selectedVehicle] && (
+                    {calculatedFares[selectedVehicle] > walletBalance && (
                       <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -653,17 +838,44 @@ const RiderDashboard = () => {
                         <div className="h-8 w-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
                           <AlertCircle className="h-4 w-4 text-rose-500" />
                         </div>
-                        <p className="text-xs font-bold text-rose-600">Insufficient balance. Please top up your wallet.</p>
+                        <p className="text-xs font-bold text-rose-600">Insufficient balance. Please top up.</p>
+                      </motion.div>
+                    )}
+
+                    {selectedVehicle && calculatedFares[selectedVehicle] && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-3"
+                      >
+                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <span>Base Fare</span>
+                          <span>₹{fareBreakups[selectedVehicle]?.base || 50}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <span>Distance & Time</span>
+                          <span>₹{(fareBreakups[selectedVehicle]?.distanceFare || 0) + (fareBreakups[selectedVehicle]?.timeFare || 0)}</span>
+                        </div>
+                        {fareBreakups[selectedVehicle]?.discount > 0 && (
+                          <div className="flex justify-between text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                            <span>Sponsored by {fareBreakups[selectedVehicle]?.sponsoredBy}</span>
+                            <span>-₹{fareBreakups[selectedVehicle]?.discount}</span>
+                          </div>
+                        )}
+                        <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Total Price</span>
+                          <span className="text-xl font-black text-indigo-600">₹{calculatedFares[selectedVehicle]}</span>
+                        </div>
                       </motion.div>
                     )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading || walletBalance < calculatedFares[selectedVehicle]}
-                    className="w-full py-6 accent-gradient text-white rounded-[2rem] text-lg font-black shadow-2xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all uppercase tracking-widest"
+                    disabled={!selectedVehicle || calculatedFares[selectedVehicle] > walletBalance || bookingStatus}
+                    className="w-full py-6 accent-gradient text-white rounded-[2rem] font-black text-lg uppercase tracking-widest shadow-2xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 transition-all"
                   >
-                    {loading ? 'Finding Driver...' : `Confirm ${vehicles.find(v => v.id === selectedVehicle)?.name}`}
+                    {bookingStatus || 'Confirm Booking'}
                   </button>
                 </form>
               </div>
@@ -714,7 +926,7 @@ const RiderDashboard = () => {
             <CheckCircle className="h-12 w-12 text-emerald-500" />
           </div>
           <p className="text-slate-500 font-bold mb-10">
-            How was your trip with {currentRide?.driverId?.name}?
+            How was your trip with {lastRide?.driverId?.name || 'your driver'}?
           </p>
           
           <div className="flex justify-center gap-3 mb-10">

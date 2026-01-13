@@ -28,7 +28,7 @@ const rideSchema = new mongoose.Schema({
   fare: Number,
   status: {
     type: String,
-    enum: ['searching', 'accepted', 'started', 'completed', 'cancelled'],
+    enum: ['searching', 'accepted', 'arrived', 'started', 'completed', 'cancelled'],
     default: 'searching',
   },
   otp: String, // For ride start verification
@@ -36,6 +36,20 @@ const rideSchema = new mongoose.Schema({
     type: Number,
     min: 1,
     max: 5,
+  },
+  priceLocked: {
+    type: Boolean,
+    default: true,
+  },
+  safetyStatus: {
+    type: String,
+    enum: ['normal', 'anomaly', 'emergency'],
+    default: 'normal',
+  },
+  fareSplit: {
+    driver: Number,
+    platform: Number,
+    brand: Number,
   },
 }, { timestamps: true });
 

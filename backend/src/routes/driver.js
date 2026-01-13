@@ -51,6 +51,9 @@ router.post('/status', auth, authorize('driver'), async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (isOnline) {
+        if (user.kycStatus !== 'verified') {
+            return res.status(403).json({ message: 'KYC not verified. Please complete your KYC to go online.' });
+        }
         if (user.subscriptionStatus !== 'active' || (user.subscriptionExpiry && new Date(user.subscriptionExpiry) < new Date())) {
             user.subscriptionStatus = 'expired';
             await user.save();

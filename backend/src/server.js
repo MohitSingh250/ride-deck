@@ -82,6 +82,21 @@ io.on('connection', (socket) => {
     io.to('admins').emit('admin-location-update', { rideId, location, driverId });
   });
 
+  socket.on('driver-arrived', ({ rideId, riderId }) => {
+    console.log(`Driver arrived for ride ${rideId}`);
+    io.to(riderId).emit('driver-arrived', { rideId });
+  });
+
+  socket.on('ride-status-update', ({ rideId, riderId, status, ride }) => {
+    console.log(`Ride ${rideId} status updated to ${status}`);
+    io.to(riderId).emit('rideStatusUpdate', ride);
+  });
+
+  socket.on('ride-completed', ({ rideId, riderId, ride }) => {
+    console.log(`Ride ${rideId} completed`);
+    io.to(riderId).emit('ride-completed', ride);
+  });
+
   // Chat Logic
   socket.on('send-message', ({ to, message, senderName }) => {
     if (to) {

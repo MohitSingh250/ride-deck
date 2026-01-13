@@ -9,7 +9,7 @@ import Modal from '../components/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DriverDashboard = () => {
-  const { user, login } = useAuth();
+  const { user, login, updateUser } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
   const [isOnline, setIsOnline] = useState(user?.isOnline || false);
@@ -17,27 +17,25 @@ const DriverDashboard = () => {
   const [currentRide, setCurrentRide] = useState(null);
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetchingActiveRide, setFetchingActiveRide] = useState(true);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [lastCompletedRide, setLastCompletedRide] = useState(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   const [stats, setStats] = useState({ todayEarnings: 0, totalRides: 0, walletBalance: 0 });
   const [earningsHistory, setEarningsHistory] = useState([]);
 
+  // 1. Initial Data Fetch (Stats & Earnings) - Only on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStats = async () => {
       try {
-        const [ridesRes, activeRideRes, statsRes, earningsHistoryRes] = await Promise.all([
-          fetch(`${API_URL}/api/rides/available${currentLocation ? `?lat=${currentLocation.lat}&lng=${currentLocation.lng}` : ''}`, {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-          }),
-          fetch(`${API_URL}/api/rides/my-ride`, {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-          }),
+        const [statsRes, earningsHistoryRes] = await Promise.all([
           fetch(`${API_URL}/api/driver/stats`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
           }),
@@ -46,35 +44,73 @@ const DriverDashboard = () => {
           })
         ]);
 
-        const ridesData = await ridesRes.json();
-        const activeRideData = await activeRideRes.json();
-        const statsData = await statsRes.json();
-        const earningsHistoryData = await earningsHistoryRes.json();
- 
-        setAvailableRides(ridesData);
-        if (activeRideData) setCurrentRide(activeRideData);
-        if (statsRes.ok) setStats(statsData);
-        if (earningsHistoryRes.ok) setEarningsHistory(earningsHistoryData);
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (earningsHistoryRes.ok) setEarningsHistory(await earningsHistoryRes.json());
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching stats:', error);
       }
     };
 
-    if (user)    fetchData();
+    if (user) fetchStats();
+  }, [user?.token, API_URL]);
 
-    // Get current location
+  // 2. Active Ride Fetch - On mount and when status changes
+  useEffect(() => {
+    const fetchActiveRide = async () => {
+      setFetchingActiveRide(true);
+      try {
+        const res = await fetch(`${API_URL}/api/rides/my-ride`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const data = await res.json();
+        if (data) setCurrentRide(data);
+      } catch (error) {
+        console.error('Error fetching active ride:', error);
+      } finally {
+        setFetchingActiveRide(false);
+      }
+    };
+
+    if (user) fetchActiveRide();
+  }, [user?.token, API_URL]);
+
+  // 3. Available Rides Fetch - When online and location changes
+  useEffect(() => {
+    const fetchAvailableRides = async () => {
+      if (!isOnline || !currentLocation) return;
+      try {
+        const res = await fetch(`${API_URL}/api/rides/available?lat=${currentLocation.lat}&lng=${currentLocation.lng}`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const data = await res.json();
+        setAvailableRides(data);
+      } catch (error) {
+        console.error('Error fetching available rides:', error);
+      }
+    };
+
+    const interval = setInterval(fetchAvailableRides, 10000); // Fetch every 10s if online
+    fetchAvailableRides();
+
+    return () => clearInterval(interval);
+  }, [isOnline, currentLocation?.lat, currentLocation?.lng, user?.token, API_URL]);
+
+  // 4. Geolocation - Only on mount
+  useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+      const watchId = navigator.geolocation.watchPosition(
         (position) => {
           setCurrentLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude
           });
         },
-        (error) => console.error('Error getting location:', error)
+        (error) => console.error('Error getting location:', error),
+        { enableHighAccuracy: true }
       );
+      return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [user, API_URL, currentLocation?.lat, currentLocation?.lng]);
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -108,17 +144,16 @@ const DriverDashboard = () => {
     if (!socket || !currentRide || currentRide.status !== 'started') return;
 
     const interval = setInterval(() => {
-      // Mock location update (moving slightly towards dropoff)
-      const location = {
-        lat: currentRide.pickup.lat + (Math.random() - 0.5) * 0.001,
-        lng: currentRide.pickup.lng + (Math.random() - 0.5) * 0.001
-      };
-      
-      socket.emit('update-location', {
-        rideId: currentRide._id,
-        driverId: user._id,
-        location
-      });
+      if (currentLocation) {
+        socket.emit('update-location', {
+          rideId: currentRide._id,
+          driverId: user._id,
+          location: {
+            lat: currentLocation.lat,
+            lng: currentLocation.lng
+          }
+        });
+      }
     }, 5000);
 
     return () => clearInterval(interval);
@@ -171,6 +206,7 @@ const DriverDashboard = () => {
       const data = await response.json();
       if (response.ok) {
         setIsOnline(!isOnline);
+        updateUser({ isOnline: !isOnline });
         toast.success(isOnline ? 'You are now offline' : 'You are now online!');
       } else {
         if (data.message && data.message.includes('Subscription')) {
@@ -224,7 +260,25 @@ const DriverDashboard = () => {
       const data = await response.json();
       if (response.ok) {
         setCurrentRide(status === 'completed' ? null : data);
-        if (status === 'completed') toast.success('Ride completed! 100% fare added to your wallet.');
+        
+        // Emit socket event for real-time sync
+        if (status === 'completed') {
+          setLastCompletedRide(data);
+          setShowSummary(true);
+          socket.emit('ride-completed', { 
+            rideId: currentRide._id, 
+            riderId: currentRide.riderId._id, 
+            ride: data 
+          });
+          toast.success('Ride completed! 100% fare added to your wallet.');
+        } else {
+          socket.emit('ride-status-update', { 
+            rideId: currentRide._id, 
+            riderId: currentRide.riderId._id, 
+            status, 
+            ride: data 
+          });
+        }
       } else {
         toast.error(data.message);
       }
@@ -276,6 +330,17 @@ const DriverDashboard = () => {
     };
     fetchBrands();
   }, [API_URL]);
+
+  if (fetchingActiveRide) {
+    return (
+      <div className="pt-20 min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-400 font-black text-xs uppercase tracking-widest">Restoring Session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 min-h-screen bg-slate-900 relative overflow-hidden flex flex-col">
@@ -524,13 +589,37 @@ const DriverDashboard = () => {
 
                     <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 flex flex-col justify-center items-center text-center">
                       <div className="h-20 w-20 bg-white rounded-[1.5rem] flex items-center justify-center text-indigo-600 font-black text-3xl shadow-sm mb-4 border border-slate-100">
-                        {currentRide.riderId.name[0]}
+                        {currentRide?.riderId?.name?.[0] || '?'}
                       </div>
-                      <h4 className="text-2xl font-black text-slate-900 mb-1">{currentRide.riderId.name}</h4>
+                      <h4 className="text-2xl font-black text-slate-900 mb-1">{currentRide?.riderId?.name || 'Rider'}</h4>
                       <div className="flex items-center gap-2 mb-6">
                         <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                        <span className="text-sm font-black text-slate-600">{currentRide.riderId.rating || '5.0'}</span>
+                        <span className="text-sm font-black text-slate-600">{currentRide?.riderId?.rating || '5.0'}</span>
                       </div>
+                      
+                      {/* Earnings Breakdown */}
+                      <div className="w-full bg-white rounded-2xl p-4 mb-6 border border-slate-100 space-y-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Earnings Breakdown</p>
+                        <div className="flex justify-between text-xs font-bold text-slate-600">
+                          <span>Fare</span>
+                          <span>₹{currentRide.fare}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold text-rose-500">
+                          <span>Platform (20%)</span>
+                          <span>-₹{Math.round(currentRide.fare * 0.2)}</span>
+                        </div>
+                        {currentRide.sponsoredBy && (
+                          <div className="flex justify-between text-xs font-bold text-emerald-600">
+                            <span>Brand Incentive</span>
+                            <span>+₹20</span>
+                          </div>
+                        )}
+                        <div className="pt-2 border-t border-slate-50 flex justify-between items-center">
+                          <span className="text-sm font-black text-slate-900">Your Earnings</span>
+                          <span className="text-lg font-black text-indigo-600">₹{Math.round(currentRide.fare * 0.8 + (currentRide.sponsoredBy ? 20 : 0))}</span>
+                        </div>
+                      </div>
+
                       <div className="flex gap-3 w-full">
                         <button 
                           onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentRide.status === 'accepted' ? currentRide.pickup.lat + ',' + currentRide.pickup.lng : currentRide.dropoff.lat + ',' + currentRide.dropoff.lng}`, '_blank')}
@@ -558,10 +647,33 @@ const DriverDashboard = () => {
                       <Shield className="h-5 w-5" />
                       SOS Emergency
                     </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to cancel this ride?')) {
+                          updateRideStatus('cancelled');
+                        }
+                      }}
+                      className="flex-1 py-5 bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <X className="h-5 w-5" />
+                      Cancel Ride
+                    </button>
                   </div>
 
                   <div className="space-y-6 pt-10 border-t border-slate-100">
                     {currentRide.status === 'accepted' ? (
+                      <div className="space-y-6">
+                        <button 
+                          onClick={() => {
+                            updateRideStatus('arrived');
+                            socket.emit('driver-arrived', { rideId: currentRide._id, riderId: currentRide.riderId._id });
+                          }}
+                          className="w-full py-6 bg-amber-500 text-white rounded-[2rem] font-black text-lg uppercase tracking-widest shadow-2xl shadow-amber-200 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        >
+                          I have Arrived
+                        </button>
+                      </div>
+                    ) : currentRide.status === 'arrived' ? (
                       <div className="space-y-6">
                         <div className="max-w-xs mx-auto">
                           <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Enter OTP to Start Ride</p>
@@ -575,7 +687,7 @@ const DriverDashboard = () => {
                           />
                         </div>
                         <button 
-                          onClick={() => updateRideStatus('started')}
+                          onClick={() => updateRideStatus('started', { otp })}
                           disabled={otp.length !== 4}
                           className="w-full py-6 accent-gradient text-white rounded-[2rem] font-black text-lg uppercase tracking-widest shadow-2xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all"
                         >
@@ -682,34 +794,67 @@ const DriverDashboard = () => {
         maxWidth="max-w-4xl"
       >
         <div className="text-center mb-12">
-          <p className="text-slate-500 font-bold">Keep 100% of your earnings. No commissions, ever.</p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-full mb-4">
+            <Crown className="h-4 w-4 text-indigo-600" />
+            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Premium Driver Benefits</span>
+          </div>
+          <h3 className="text-3xl font-black text-slate-900 mb-2">Maximize Your Earnings</h3>
+          <p className="text-slate-500 font-bold max-w-md mx-auto">Keep 100% of your fare. No hidden commissions, just a simple subscription.</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-8">
           {[
-            { id: 'daily', name: 'Daily', price: '₹49', desc: 'Perfect for part-time' },
-            { id: 'weekly', name: 'Weekly', price: '₹299', desc: 'Most popular choice', popular: true },
-            { id: 'monthly', name: 'Monthly', price: '₹999', desc: 'Best value for pros' }
+            { id: 'daily', name: 'Daily Pass', price: '49', desc: 'Perfect for part-time', icon: Clock, color: 'slate' },
+            { id: 'weekly', name: 'Weekly Pro', price: '299', desc: 'Most popular choice', popular: true, icon: Zap, color: 'indigo' },
+            { id: 'monthly', name: 'Monthly Elite', price: '999', desc: 'Best value for pros', icon: Crown, color: 'amber' }
           ].map(plan => (
             <div 
               key={plan.id}
-              className={`relative p-8 rounded-[2.5rem] border-2 transition-all ${plan.popular ? 'border-indigo-600 bg-indigo-50/30' : 'border-slate-100 hover:border-slate-200'}`}
+              className={`relative p-8 rounded-[3rem] border-2 transition-all flex flex-col ${
+                plan.popular 
+                  ? 'border-indigo-600 bg-white shadow-2xl shadow-indigo-100 scale-105 z-10' 
+                  : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
+              }`}
             >
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  Popular
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-6 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+                  Most Popular
                 </div>
               )}
-              <h3 className="text-xl font-black text-slate-900 mb-2">{plan.name}</h3>
-              <p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">{plan.desc}</p>
-              <div className="mb-8">
-                <span className="text-4xl font-black text-slate-900">{plan.price}</span>
+              
+              <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mb-6 ${
+                plan.popular ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white text-slate-400 shadow-sm'
+              }`}>
+                <plan.icon className="h-7 w-7" />
               </div>
+
+              <h3 className="text-xl font-black text-slate-900 mb-1">{plan.name}</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{plan.desc}</p>
+              
+              <div className="mb-8 flex items-baseline gap-1">
+                <span className="text-sm font-black text-slate-400">₹</span>
+                <span className="text-5xl font-black text-slate-900 tracking-tight">{plan.price}</span>
+                <span className="text-xs font-bold text-slate-400">/period</span>
+              </div>
+
+              <ul className="space-y-4 mb-10 flex-1">
+                {['0% Commission', 'Priority Matching', '24/7 Support'].map((feature, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                    <CheckCircle className={`h-4 w-4 ${plan.popular ? 'text-indigo-500' : 'text-slate-300'}`} />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
               <button 
                 onClick={() => handleSubscribe(plan.id)}
-                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${plan.popular ? 'accent-gradient text-white shadow-xl shadow-indigo-200' : 'bg-slate-900 text-white'}`}
+                className={`w-full py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all ${
+                  plan.popular 
+                    ? 'accent-gradient text-white shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98]' 
+                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                }`}
               >
-                Select Plan
+                Activate Plan
               </button>
             </div>
           ))}
@@ -790,6 +935,43 @@ const DriverDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Ride Summary Modal */}
+      <Modal
+        isOpen={showSummary}
+        onClose={() => setShowSummary(false)}
+        title="Ride Summary"
+        maxWidth="max-w-md"
+      >
+        <div className="text-center">
+          <div className="h-24 w-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8">
+            <CheckCircle className="h-12 w-12 text-emerald-500" />
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 mb-2">Excellent Work!</h3>
+          <p className="text-slate-500 font-bold mb-10">You've successfully completed the ride.</p>
+          
+          <div className="bg-slate-50 rounded-[2rem] p-8 mb-10 space-y-6">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-bold">Earnings</span>
+              <span className="text-2xl font-black text-emerald-600">₹{lastCompletedRide?.fare}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-bold">Distance</span>
+              <span className="text-slate-900 font-black">{lastCompletedRide?.distance?.toFixed(2)} km</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-bold">Rider</span>
+              <span className="text-slate-900 font-black">{lastCompletedRide?.riderId?.name}</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setShowSummary(false)}
+            className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] hover:scale-[1.02] transition-all shadow-2xl shadow-slate-200 uppercase tracking-widest"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

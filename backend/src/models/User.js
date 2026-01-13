@@ -106,6 +106,14 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  acceptanceRate: {
+    type: Number,
+    default: 100,
+  },
+  optedInCampaigns: {
+    type: [String],
+    default: [],
+  },
 }, { timestamps: true });
 
 userSchema.index({ currentLocation: '2dsphere' });

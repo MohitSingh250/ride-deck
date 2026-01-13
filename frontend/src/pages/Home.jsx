@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, Clock, MapPin, Shield, Star, Smartphone, Globe, Navigation, Banknote, Calendar, ShieldCheck, User, Car } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
 
@@ -15,6 +15,11 @@ const Home = () => {
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   const isDriver = user?.role === 'driver';
+
+  // Redirect admins to the admin dashboard
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
 
   const handleSeePrices = (e) => {
     e.preventDefault();
