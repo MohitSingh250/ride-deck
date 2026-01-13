@@ -56,8 +56,14 @@ router.post('/status', auth, authorize('driver'), async (req, res) => {
             await user.save();
             return res.status(403).json({ message: 'Subscription expired. Please renew to go online.' });
         }
-        // In a real app, this would be the actual driver location
-        user.currentLocation = { lat: 28.6139, lng: 77.2090 }; 
+        
+        const { lat, lng } = req.body;
+        if (lat && lng) {
+          user.currentLocation = {
+            type: 'Point',
+            coordinates: [lng, lat]
+          };
+        }
     }
     user.isOnline = isOnline;
     await user.save();

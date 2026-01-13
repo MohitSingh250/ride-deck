@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { ArrowRight, Clock, MapPin, Shield, Star, Smartphone, Globe, Navigation, Banknote, Calendar, ShieldCheck, User, Car } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 500], [0, 200]);
+  const y2 = useTransform(scrollY, [0, 500], [0, -150]);
+  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   const isDriver = user?.role === 'driver';
 
@@ -28,10 +32,10 @@ const Home = () => {
             {/* High-Impact Hero Section */}
             <div className="relative min-h-[95vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
                 {/* Background Elements */}
-                <div className="absolute inset-0 z-0">
+                <motion.div style={{ y: y1, opacity }} className="absolute inset-0 z-0">
                     <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-100 rounded-full blur-[120px] opacity-60 animate-pulse-slow"></div>
                     <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-purple-100 rounded-full blur-[100px] opacity-40"></div>
-                </div>
+                </motion.div>
 
                 <div className="max-w-7xl mx-auto relative z-10 grid lg:grid-cols-2 gap-16 items-center">
                     <motion.div 
@@ -92,6 +96,7 @@ const Home = () => {
                     </motion.div>
 
                     <motion.div 
+                        style={{ y: y2 }}
                         initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
                         animate={{ opacity: 1, scale: 1, rotate: 0 }}
                         transition={{ duration: 1, ease: "easeOut" }}
@@ -99,19 +104,19 @@ const Home = () => {
                     >
                         <div className="relative z-10 bg-white p-4 rounded-[3rem] shadow-2xl border border-slate-100 transform hover:scale-[1.02] transition-transform duration-500">
                             <img 
-                                src="/hero_premium.png" 
+                                src="/hero_luxury_ride_1768282337387.png" 
                                 alt="Premium Ride" 
-                                className="w-full h-[600px] object-cover rounded-[2.5rem]" 
+                                className="w-full h-[600px] object-cover rounded-[2.5rem] shadow-2xl" 
                             />
                             {/* Floating Stats Card */}
                             <div className="absolute -bottom-10 -left-10 glass p-6 rounded-3xl animate-bounce-slow">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600">
+                                    <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
                                         <Banknote className="h-6 w-6" />
                                     </div>
                                     <div>
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Earnings Today</p>
-                                        <p className="text-2xl font-black text-slate-900">$428.50</p>
+                                        <p className="text-2xl font-black text-slate-900">₹12,428</p>
                                     </div>
                                 </div>
                             </div>
@@ -132,6 +137,176 @@ const Home = () => {
                         <div className="absolute -inset-10 border-2 border-indigo-100 rounded-[4rem] -z-10 animate-pulse-slow"></div>
                         <div className="absolute -inset-20 border border-purple-50 rounded-[5rem] -z-20 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
                     </motion.div>
+                </div>
+            </div>
+            
+            {/* Live Stats Ticker */}
+            <div className="bg-indigo-600 py-6 overflow-hidden relative z-20 shadow-2xl">
+                <div className="flex whitespace-nowrap animate-scroll">
+                    {[...Array(10)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-12 px-6">
+                            <span className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></div>
+                                1,248 Active Rides
+                            </span>
+                            <span className="text-white/60 font-black text-sm uppercase tracking-widest">•</span>
+                            <span className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                                <ShieldCheck className="h-4 w-4 text-indigo-200" />
+                                500k+ Verified Drivers
+                            </span>
+                            <span className="text-white/60 font-black text-sm uppercase tracking-widest">•</span>
+                            <span className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                                <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                                4.9/5 Avg Rating
+                            </span>
+                            <span className="text-white/60 font-black text-sm uppercase tracking-widest">•</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Why RideDeck? (Unique Selling Points) */}
+            <div className="py-32 bg-white relative z-10 overflow-hidden">
+                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-50 rounded-full blur-[120px] opacity-40 -translate-y-1/2 translate-x-1/2"></div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid lg:grid-cols-2 gap-20 items-center">
+                        <motion.div
+                            initial={{ opacity: 0, x: -50 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8 }}
+                        >
+                            <h2 className="text-xs font-black text-indigo-600 uppercase tracking-[0.3em] mb-4">The RideDeck Edge</h2>
+                            <h3 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight mb-8 leading-tight">
+                                More than just a ride. <br />
+                                <span className="text-indigo-600">A better way to move.</span>
+                            </h3>
+                            <div className="space-y-8">
+                                {[
+                                    { title: "Zero Commission Model", desc: "Drivers keep 100% of their earnings. No hidden fees, no platform cuts.", icon: Banknote },
+                                    { title: "Smart Matching AI", desc: "Our advanced algorithms match you with the best driver in seconds.", icon: Navigation },
+                                    { title: "Premium Safety Kit", desc: "SOS button, live trip sharing, and 24/7 support for every journey.", icon: ShieldCheck }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex gap-6 group">
+                                        <div className="flex-shrink-0 w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
+                                            <item.icon className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xl font-black text-slate-900 mb-2">{item.title}</h4>
+                                            <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8 }}
+                            className="relative"
+                        >
+                            <div className="relative z-10 rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100">
+                                <img 
+                                    src="https://images.unsplash.com/photo-1559067096-49ebca3406aa?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8Y2l0eSUyMG5pZ2h0fGVufDB8fDB8fHww" 
+                                    alt="City at night" 
+                                    className="w-full h-[600px] object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/60 to-transparent"></div>
+                                <div className="absolute bottom-10 left-10 right-10">
+                                    <div className="glass p-6 rounded-3xl">
+                                        <p className="text-white font-black text-lg mb-2">"The best ride-hailing experience I've ever had. Truly premium."</p>
+                                        <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest">— Alex Rivera, Premium Rider</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Decorative Elements */}
+                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-100 rounded-full blur-3xl opacity-60"></div>
+                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-indigo-100 rounded-full blur-3xl opacity-60"></div>
+                        </motion.div>
+                    </div>
+
+            {/* Brand Collaboration Section (Enhanced) */}
+            <div className="py-32 bg-slate-50 relative overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <div className="text-center mb-20">
+                        <h2 className="text-xs font-black text-indigo-600 uppercase tracking-[0.3em] mb-4">Exclusive Partnerships</h2>
+                        <h3 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight">Ride with your favorite brands.</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                        {[
+                            { name: "Starbucks", logo: "☕", color: "bg-green-50", text: "Free upgrade on every ride" },
+                            { name: "Nike", logo: "✔️", color: "bg-orange-50", text: "15% off new arrivals" },
+                            { name: "Apple", logo: "🍎", color: "bg-slate-100", text: "Exclusive Apple Music trials" },
+                            { name: "Amazon", logo: "📦", color: "bg-amber-50", text: "Prime delivery on the go" }
+                        ].map((brand, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.1 }}
+                                whileHover={{ scale: 1.05 }}
+                                className={`${brand.color} p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col items-center text-center group transition-all`}
+                            >
+                                <div className="text-4xl mb-6 group-hover:scale-125 transition-transform duration-500">{brand.logo}</div>
+                                <h4 className="text-xl font-black text-slate-900 mb-2">{brand.name}</h4>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{brand.text}</p>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Download App Section */}
+            <div className="py-32 bg-white relative overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="bg-indigo-600 rounded-[4rem] p-12 md:p-24 relative overflow-hidden shadow-2xl shadow-indigo-200">
+                        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-white/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+                        
+                        <div className="grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                            <div>
+                                <h2 className="text-4xl md:text-6xl font-black text-white mb-8 leading-tight">
+                                    Ready to move? <br />
+                                    Download the app.
+                                </h2>
+                                <p className="text-indigo-100 text-xl mb-12 leading-relaxed max-w-lg">
+                                    Get the full RideDeck experience on your phone. Real-time tracking, instant payments, and exclusive rewards.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-6">
+                                    <button className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-indigo-50 transition-all transform hover:-translate-y-1">
+                                        <Smartphone className="h-6 w-6" />
+                                        App Store
+                                    </button>
+                                    <button className="bg-indigo-500 text-white border border-indigo-400 px-8 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-indigo-400 transition-all transform hover:-translate-y-1">
+                                        <Globe className="h-6 w-6" />
+                                        Google Play
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="relative hidden lg:block">
+                                <motion.div
+                                    initial={{ y: 100, opacity: 0 }}
+                                    whileInView={{ y: 0, opacity: 1 }}
+                                    viewport={{ once: true }}
+                                    transition={{ duration: 1 }}
+                                    className="relative z-10"
+                                >
+                                    <img 
+                                        src="/app_interface_mockup_1768282352941.png" 
+                                        alt="App Preview" 
+                                        className="w-[300px] mx-auto rounded-[3rem] shadow-2xl border-8 border-indigo-500/50 rotate-6"
+                                    />
+                                </motion.div>
+                                {/* Decorative elements */}
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-2xl animate-pulse"></div>
+                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/20 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
                 </div>
             </div>
 
@@ -306,7 +481,7 @@ const Home = () => {
                     <div className="relative h-64 w-full bg-blue-50 rounded-3xl overflow-hidden mb-8 transition-transform transform group-hover:-translate-y-2 duration-300">
                         <div className="absolute inset-0 bg-blue-500 opacity-10 group-hover:opacity-20 transition-opacity"></div>
                         <img 
-                            src="/step_request_premium.png" 
+                            src="/safety_feature_3d_v2_1768282385851.png" 
                             alt="Step 1" 
                             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" 
                         />
@@ -329,7 +504,7 @@ const Home = () => {
                         <div className="absolute inset-0 bg-purple-600 mix-blend-color z-10 opacity-60"></div>
                         <div className="absolute inset-0 bg-purple-100 z-0"></div>
                         <img 
-                            src="/step_track_premium.png" 
+                            src="/app_interface_mockup_1768282352941.png" 
                             alt="Step 2" 
                             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 relative z-0 mix-blend-multiply" 
                         />
@@ -352,7 +527,7 @@ const Home = () => {
                         <div className="absolute inset-0 bg-teal-600 mix-blend-color z-10 opacity-60"></div>
                         <div className="absolute inset-0 bg-teal-100 z-0"></div>
                         <img 
-                            src="/step_ride_premium.png" 
+                            src="/driver_earnings_3d_1768282402449.png" 
                             alt="Step 3" 
                             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 relative z-0 mix-blend-multiply" 
                         />
@@ -414,7 +589,7 @@ const Home = () => {
             <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
                 <div className="order-2 lg:order-1">
                     <img 
-                        src="/hero_premium.png" 
+                        src="/hero_luxury_ride_1768282337387.png" 
                         alt="City Ride" 
                         className="w-full h-auto rounded-3xl shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-500"
                     />
@@ -493,7 +668,7 @@ const Home = () => {
                     </div>
                     <div className="relative">
                         <img 
-                            src="/account_premium.png" 
+                            src="/community_premium_3d_1768282488451.png" 
                             alt="Community" 
                             className="w-full h-auto rounded-2xl shadow-lg border-4 border-gray-800"
                         />

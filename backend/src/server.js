@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/db');
+const User = require('./models/User');
 
 dotenv.config();
 
@@ -61,7 +62,21 @@ io.on('connection', (socket) => {
     console.log(`Admin ${socket.id} joined admins room`);
   });
 
-  socket.on('update-location', ({ rideId, location, driverId }) => {
+  socket.on('update-location', async ({ rideId, location, driverId }) => {
+    // Update driver's location in DB
+    if (driverId) {
+      try {
+        await User.findByIdAndUpdate(driverId, {
+          currentLocation: {
+            type: 'Point',
+            coordinates: [location.lng, location.lat]
+          }
+        });
+      } catch (error) {
+        console.error('Failed to update driver location in DB:', error.message);
+      }
+    }
+
     // Broadcast to the specific rider and all admins
     io.to(rideId).emit('location-update', { location, driverId });
     io.to('admins').emit('admin-location-update', { rideId, location, driverId });
@@ -83,8 +98,8 @@ io.on('connection', (socket) => {
   // SOS Logic
   socket.on('sos-alert', ({ userId, userName, location, rideId }) => {
     console.error(`🚨 SOS ALERT from ${userName} (ID: ${userId}) on ride ${rideId} at ${JSON.stringify(location)}`);
-    // In a real app, this would notify emergency services and admins
-    io.emit('admin-sos-alert', { userId, userName, location, rideId, timestamp: new Date() });
+    // Notify all admins specifically
+    io.to('admins').emit('admin-sos-alert', { userId, userName, location, rideId, timestamp: new Date() });
   });
 
   // Share Trip Logic

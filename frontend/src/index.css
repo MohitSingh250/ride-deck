@@ -19,6 +19,8 @@
   --animate-slide-up: slide-up 0.5s ease-out;
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scroll: scroll 40s linear infinite;
+  --animate-bounce-slow: bounce 3s ease-in-out infinite;
 
   @keyframes fade-in {
     0% { opacity: 0; }
@@ -31,6 +33,14 @@
   @keyframes scale-in {
     0% { transform: scale(0.95); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
   }
 }
 

@@ -59,8 +59,15 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   currentLocation: {
-    lat: Number,
-    lng: Number,
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      default: [77.2090, 28.6139], // Default to New Delhi
+    },
   },
   walletBalance: {
     type: Number,
@@ -100,5 +107,7 @@ const userSchema = new mongoose.Schema({
     default: 0,
   },
 }, { timestamps: true });
+
+userSchema.index({ currentLocation: '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);

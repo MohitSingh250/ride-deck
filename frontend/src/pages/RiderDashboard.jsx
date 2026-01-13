@@ -37,6 +37,13 @@ const RiderDashboard = () => {
 
   const [walletBalance, setWalletBalance] = useState(0);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [notifiedBrands, setNotifiedBrands] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [showChat, setShowChat] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastRide, setLastRide] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
 
   useEffect(() => {
     const fetchActiveRide = async () => {
@@ -131,17 +138,10 @@ const RiderDashboard = () => {
     };
   }, [socket, showChat]);
 
-  const [notifiedBrands, setNotifiedBrands] = useState(new Set());
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [showChat, setShowChat] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [lastRide, setLastRide] = useState(null);
-  const [driverLocation, setDriverLocation] = useState(null);
 
   useEffect(() => {
     if (currentRide?.status === 'started') {
-      setNotifiedBrands(new Set()); // Reset for new ride
+      setNotifiedBrands([]); // Reset for new ride
     }
   }, [currentRide?.status]);
 
@@ -256,6 +256,8 @@ const RiderDashboard = () => {
         body: JSON.stringify({
           pickup,
           dropoff,
+          pickupCoords: routeDetails?.pickup,
+          dropoffCoords: routeDetails?.dropoff,
           vehicleType: selectedVehicle,
           fare: calculatedFares[selectedVehicle]
         }),

@@ -8,30 +8,30 @@ const { auth } = require('../middleware/authMiddleware');
 // @desc    Book a new ride
 // @access  Private
 router.post('/book', auth, async (req, res) => {
-  const { pickup, dropoff, vehicleType, fare } = req.body;
-  const riderId = req.user._id;
+    const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords } = req.body;
+    const riderId = req.user._id;
 
-  try {
-    // Check for existing active ride
-    const existingRide = await Ride.findOne({ 
-      riderId, 
-      status: { $in: ['searching', 'accepted', 'started'] } 
-    });
+    try {
+      // Check for existing active ride
+      const existingRide = await Ride.findOne({ 
+        riderId, 
+        status: { $in: ['searching', 'accepted', 'started'] } 
+      });
 
-    if (existingRide) {
-      return res.status(400).json({ message: 'You already have an active ride.' });
-    }
+      if (existingRide) {
+        return res.status(400).json({ message: 'You already have an active ride.' });
+      }
 
-    const user = await User.findById(riderId);
-    if (user.walletBalance < fare) {
-      return res.status(400).json({ message: 'Insufficient wallet balance. Please top up.' });
-    }
+      const user = await User.findById(riderId);
+      if (user.walletBalance < fare) {
+        return res.status(400).json({ message: 'Insufficient wallet balance. Please top up.' });
+      }
 
-    // Mock coordinates for routing (New Delhi area)
-    const pickupLat = 28.6139 + (Math.random() - 0.5) * 0.05;
-    const pickupLng = 77.2090 + (Math.random() - 0.5) * 0.05;
-    const dropoffLat = 28.6139 + (Math.random() - 0.5) * 0.05;
-    const dropoffLng = 77.2090 + (Math.random() - 0.5) * 0.05;
+      // Use provided coordinates or fallback to mock (New Delhi area)
+      const pickupLat = pickupCoords?.lat || 28.6139 + (Math.random() - 0.5) * 0.05;
+      const pickupLng = pickupCoords?.lng || 77.2090 + (Math.random() - 0.5) * 0.05;
+      const dropoffLat = dropoffCoords?.lat || 28.6139 + (Math.random() - 0.5) * 0.05;
+      const dropoffLng = dropoffCoords?.lng || 77.2090 + (Math.random() - 0.5) * 0.05;
 
     const ride = new Ride({
       riderId,
@@ -52,9 +52,32 @@ router.post('/book', auth, async (req, res) => {
 
     await ride.save();
 
-    // Notify all online drivers about the new ride request
+    // Smart Matching: Find drivers within 5km radius
+    const nearbyDrivers = await User.find({
+      role: 'driver',
+      isOnline: true,
+      subscriptionStatus: 'active',
+      currentLocation: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [pickupLng, pickupLat]
+          },
+          $maxDistance: 5000 // 5km in meters
+        }
+      }
+    });
+
     const io = req.app.get('io');
-    io.emit('newRideRequest', ride);
+    if (nearbyDrivers.length > 0) {
+      // Notify only nearby drivers
+      nearbyDrivers.forEach(driver => {
+        io.to(driver._id.toString()).emit('newRideRequest', ride);
+      });
+    } else {
+      // Fallback: Notify all online drivers if no one is nearby
+      io.emit('newRideRequest', ride);
+    }
 
     res.status(201).json(ride);
   } catch (error) {
@@ -63,11 +86,24 @@ router.post('/book', auth, async (req, res) => {
 });
 
 // @route   GET /api/rides/available
-// @desc    Get available rides for drivers
+// @desc    Get available rides for drivers (sorted by proximity)
 // @access  Private
 router.get('/available', auth, async (req, res) => {
+  const { lat, lng } = req.query;
+  
   try {
-    const rides = await Ride.find({ status: 'searching' }).populate('riderId', 'name phone');
+    let query = { status: 'searching' };
+    let rides = await Ride.find(query).populate('riderId', 'name phone rating');
+
+    if (lat && lng) {
+      // Sort by proximity if coordinates provided
+      rides = rides.sort((a, b) => {
+        const distA = Math.sqrt(Math.pow(a.pickup.lat - lat, 2) + Math.pow(a.pickup.lng - lng, 2));
+        const distB = Math.sqrt(Math.pow(b.pickup.lat - lat, 2) + Math.pow(b.pickup.lng - lng, 2));
+        return distA - distB;
+      });
+    }
+
     res.json(rides);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });

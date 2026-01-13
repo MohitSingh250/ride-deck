@@ -21,6 +21,7 @@ const DriverDashboard = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -31,7 +32,7 @@ const DriverDashboard = () => {
     const fetchData = async () => {
       try {
         const [ridesRes, activeRideRes, statsRes, earningsHistoryRes] = await Promise.all([
-          fetch(`${API_URL}/api/rides/available`, {
+          fetch(`${API_URL}/api/rides/available${currentLocation ? `?lat=${currentLocation.lat}&lng=${currentLocation.lng}` : ''}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
           }),
           fetch(`${API_URL}/api/rides/my-ride`, {
@@ -59,8 +60,21 @@ const DriverDashboard = () => {
       }
     };
 
-    if (user) fetchData();
-  }, [user, API_URL]);
+    if (user)    fetchData();
+
+    // Get current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => console.error('Error getting location:', error)
+      );
+    }
+  }, [user, API_URL, currentLocation?.lat, currentLocation?.lng]);
 
   useEffect(() => {
     if (!socket) return;
@@ -147,7 +161,11 @@ const DriverDashboard = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`
         },
-        body: JSON.stringify({ isOnline: !isOnline }),
+        body: JSON.stringify({ 
+          isOnline: !isOnline,
+          lat: currentLocation?.lat,
+          lng: currentLocation?.lng
+        }),
       });
 
       const data = await response.json();
