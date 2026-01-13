@@ -29,6 +29,10 @@ const brandSchema = new mongoose.Schema({
     enum: ['food', 'shopping', 'entertainment', 'other'],
     default: 'other',
   },
+  discountCode: {
+    type: String,
+    required: true,
+  },
   isActive: {
     type: Boolean,
     default: true,

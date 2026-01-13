@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Clock, Star, Car, Bike, Truck, CheckCircle, Bell, Gift, Map as MapIcon, X } from 'lucide-react';
+import { MapPin, Navigation, Clock, Star, Car, Bike, Truck, CheckCircle, Bell, Gift, Map as MapIcon, X, Wallet as WalletIcon, AlertCircle, Shield, Share2, MessageSquare, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -23,7 +23,7 @@ const RiderDashboard = () => {
   const [nearbyBrand, setNearbyBrand] = useState(null);
   const [showBrandNotification, setShowBrandNotification] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   const vehicles = [
     { id: 'bike', name: 'Bike', icon: Bike, price: `₹${calculatedFares.bike}`, time: routeDetails ? `${Math.round(routeDetails.duration / 60)} min` : '5 min' },
@@ -34,6 +34,9 @@ const RiderDashboard = () => {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
 
   useEffect(() => {
     const fetchActiveRide = async () => {
@@ -61,9 +64,25 @@ const RiderDashboard = () => {
       }
     };
 
+    const fetchWallet = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/wallet/history`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setWalletBalance(data.balance);
+          setLoyaltyPoints(data.loyaltyPoints || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching wallet:', error);
+      }
+    };
+
     if (user) {
       fetchActiveRide();
       fetchBrands();
+      fetchWallet();
     }
   }, [user, API_URL]);
 
@@ -74,6 +93,13 @@ const RiderDashboard = () => {
       setCurrentRide(ride);
       setBookingStatus('Driver Accepted!');
       toast.success('Driver found!');
+    });
+
+    socket.on('ride-completed', (ride) => {
+      setLastRide(ride);
+      setCurrentRide(null);
+      setShowReceipt(true);
+      toast.success('Ride completed! Receipt generated.');
     });
 
     socket.on('rideStatusUpdate', (ride) => {
@@ -92,9 +118,32 @@ const RiderDashboard = () => {
         toast.error('Ride cancelled');
       }
     });
-  }, [socket]);
 
+    socket.on('receive-message', (data) => {
+      setChatMessages(prev => [...prev, { ...data, type: 'received' }]);
+      if (!showChat) toast.success(`New message from ${data.senderName}`);
+    });
+
+    return () => {
+      socket.off('rideAccepted');
+      socket.off('rideStatusUpdate');
+      socket.off('receive-message');
+    };
+  }, [socket, showChat]);
+
+  const [notifiedBrands, setNotifiedBrands] = useState(new Set());
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [showChat, setShowChat] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastRide, setLastRide] = useState(null);
   const [driverLocation, setDriverLocation] = useState(null);
+
+  useEffect(() => {
+    if (currentRide?.status === 'started') {
+      setNotifiedBrands(new Set()); // Reset for new ride
+    }
+  }, [currentRide?.status]);
 
   useEffect(() => {
     if (currentRide?.status === 'started' && routeDetails?.coordinates) {
@@ -106,11 +155,14 @@ const RiderDashboard = () => {
           
           // Check for nearby brands
           brands.forEach(brand => {
+            if (notifiedBrands.includes(brand._id)) return;
+
             brand.locations.forEach(loc => {
               const dist = Math.sqrt(Math.pow(coord.lat - loc.lat, 2) + Math.pow(coord.lng - loc.lng, 2));
               if (dist < 0.005) { // Roughly 500m
                 setNearbyBrand(brand);
                 setShowBrandNotification(true);
+                setNotifiedBrands(prev => [...prev, brand._id]);
               }
             });
           });
@@ -122,7 +174,7 @@ const RiderDashboard = () => {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [currentRide?.status, routeDetails, brands]);
+  }, [currentRide?.status, routeDetails, brands, notifiedBrands]);
 
   const handleRouteFound = (details) => {
     setRouteDetails(details);
@@ -132,6 +184,56 @@ const RiderDashboard = () => {
       auto: Math.round(30 + distanceKm * 12),
       cab: Math.round(50 + distanceKm * 18),
     });
+  };
+
+  const handleSOS = () => {
+    if (!currentRide) return;
+    socket.emit('sos-alert', {
+      userId: user._id,
+      userName: user.name,
+      location: currentRide.pickup, // In real app, use current GPS
+      rideId: currentRide._id
+    });
+    toast.error('SOS Alert Sent! Emergency services notified.', {
+      duration: 5000,
+      icon: '🚨'
+    });
+  };
+
+  const handleShareTrip = () => {
+    if (!currentRide) return;
+    const shareData = {
+      title: 'RideDeck Trip',
+      text: `I'm on my way! Track my ride: ${currentRide.pickup.address} to ${currentRide.dropoff.address}`,
+      url: window.location.href
+    };
+    
+    if (navigator.share) {
+      navigator.share(shareData).catch(console.error);
+    } else {
+      socket.emit('share-trip', {
+        rideId: currentRide._id,
+        riderName: user.name,
+        location: currentRide.pickup,
+        destination: currentRide.dropoff
+      });
+      toast.success('Trip details shared with emergency contacts');
+    }
+  };
+
+  const sendMessage = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !currentRide?.driverId) return;
+
+    const messageData = {
+      to: currentRide.driverId._id,
+      message: chatInput,
+      senderName: user.name
+    };
+
+    socket.emit('send-message', messageData);
+    setChatMessages(prev => [...prev, { ...messageData, type: 'sent', timestamp: new Date() }]);
+    setChatInput('');
   };
 
   const handleBook = async (e) => {
@@ -196,6 +298,29 @@ const RiderDashboard = () => {
     }
   };
 
+  const handleClaimOffer = async (brandId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/brands/claim`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ brandId }),
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        toast.success('Offer claimed! Check your Deals page.');
+        setShowBrandNotification(false);
+      } else {
+        toast.error(data.message || 'Failed to claim offer');
+      }
+    } catch (error) {
+      toast.error('Error claiming offer');
+    }
+  };
+
   const submitReview = async () => {
     try {
       const response = await fetch(`${API_URL}/api/reviews`, {
@@ -256,22 +381,30 @@ const RiderDashboard = () => {
             exit={{ y: -100, opacity: 0 }}
             className="fixed top-24 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md"
           >
-            <div className="glass p-4 rounded-3xl flex items-center gap-4 shadow-2xl border-indigo-500/30">
-              <div className="h-12 w-12 rounded-2xl bg-white p-2 shadow-inner">
-                <img src={nearbyBrand.logo} alt={nearbyBrand.name} className="h-full w-full object-contain" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                  <Gift className="h-4 w-4 text-indigo-600" />
-                  {nearbyBrand.name} Nearby!
-                </h4>
-                <p className="text-xs font-medium text-slate-600">{nearbyBrand.offerText}</p>
+            <div className="glass p-6 rounded-[2.5rem] flex flex-col gap-4 shadow-2xl border-indigo-500/30">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl bg-white p-3 shadow-inner border border-slate-100">
+                  <img src={nearbyBrand.logo} alt={nearbyBrand.name} className="h-full w-full object-contain" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-indigo-600" />
+                    {nearbyBrand.name} Nearby!
+                  </h4>
+                  <p className="text-sm font-bold text-slate-600 leading-tight">{nearbyBrand.offerText}</p>
+                </div>
+                <button 
+                  onClick={() => setShowBrandNotification(false)}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5 text-slate-400" />
+                </button>
               </div>
               <button 
-                onClick={() => setShowBrandNotification(false)}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                onClick={() => handleClaimOffer(nearbyBrand._id)}
+                className="w-full py-4 accent-gradient text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:scale-[1.02] transition-all"
               >
-                <X className="h-4 w-4 text-slate-400" />
+                Claim Reward Now
               </button>
             </div>
           </motion.div>
@@ -363,9 +496,33 @@ const RiderDashboard = () => {
                   </div>
                 </div>
 
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSOS}
+                    className="flex-1 py-4 bg-rose-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-100 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                  >
+                    <Shield className="h-4 w-4" />
+                    SOS
+                  </button>
+                  <button
+                    onClick={handleShareTrip}
+                    className="flex-1 py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-slate-200 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </button>
+                  <button
+                    onClick={() => setShowChat(true)}
+                    className="flex-1 py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-100 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Chat
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setShowCancelConfirm(true)}
-                  className="w-full py-4 text-rose-500 font-black text-sm uppercase tracking-widest hover:bg-rose-50 rounded-2xl transition-all border-2 border-transparent hover:border-rose-100"
+                  className="w-full py-4 text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-slate-50 rounded-2xl transition-all"
                 >
                   Cancel Ride
                 </button>
@@ -380,7 +537,13 @@ const RiderDashboard = () => {
               className="glass w-full md:w-[450px] md:rounded-[3rem] shadow-2xl pointer-events-auto flex flex-col max-h-[85vh] md:max-h-[calc(100vh-140px)] overflow-hidden border-white/40"
             >
               <div className="p-10 border-b border-slate-100">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Where are we going?</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Where to?</h2>
+                  <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                    <WalletIcon className="h-4 w-4 text-indigo-600" />
+                    <span className="text-sm font-black text-indigo-600">₹{walletBalance.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
               
               <div className="p-10 overflow-y-auto custom-scrollbar space-y-8">
@@ -416,8 +579,45 @@ const RiderDashboard = () => {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Select Vehicle</h3>
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="flex items-center justify-between px-2">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Select Vehicle</p>
+                      <div className="flex items-center gap-2">
+                        <WalletIcon className="h-3 w-3 text-indigo-600" />
+                    <span className={`text-xs font-black ${walletBalance < calculatedFares[selectedVehicle] ? 'text-rose-500' : 'text-indigo-600'}`}>
+                          ₹{walletBalance.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Referral & Rewards Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-6 rounded-[2.5rem] bg-indigo-600 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-200"
+        >
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+              <Gift className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black">Earn ₹100 for every friend!</h3>
+              <p className="text-sm font-bold text-indigo-100">Invite friends to RideDeck and earn loyalty points on every referral.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden md:block">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Your Points</p>
+              <p className="text-xl font-black">{loyaltyPoints} pts</p>
+            </div>
+            <button
+              onClick={() => navigate('/referral')}
+              className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all whitespace-nowrap"
+            >
+              Refer Now
+            </button>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                       {vehicles.map((vehicle) => (
                         <div
                           key={vehicle.id}
@@ -441,11 +641,24 @@ const RiderDashboard = () => {
                         </div>
                       ))}
                     </div>
+
+                    {walletBalance < calculatedFares[selectedVehicle] && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3"
+                      >
+                        <div className="h-8 w-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                          <AlertCircle className="h-4 w-4 text-rose-500" />
+                        </div>
+                        <p className="text-xs font-bold text-rose-600">Insufficient balance. Please top up your wallet.</p>
+                      </motion.div>
+                    )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || walletBalance < calculatedFares[selectedVehicle]}
                     className="w-full py-6 accent-gradient text-white rounded-[2rem] text-lg font-black shadow-2xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all uppercase tracking-widest"
                   >
                     {loading ? 'Finding Driver...' : `Confirm ${vehicles.find(v => v.id === selectedVehicle)?.name}`}
@@ -528,6 +741,162 @@ const RiderDashboard = () => {
           </button>
         </div>
       </Modal>
+      {/* Chat Modal */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-4 md:p-8 pointer-events-none"
+          >
+            <div className="glass w-full max-w-lg h-[80vh] md:h-[600px] rounded-[2.5rem] shadow-2xl pointer-events-auto flex flex-col overflow-hidden border-white/40">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white/50">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-indigo-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
+                    {currentRide?.driverId?.profilePicture ? (
+                      <img src={currentRide.driverId.profilePicture} alt="Driver" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xl font-black text-indigo-600">{currentRide?.driverId?.name[0]}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900">{currentRide?.driverId?.name}</h3>
+                    <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Driver</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowChat(false)}
+                  className="p-3 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="h-6 w-6 text-slate-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/50">
+                {chatMessages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                    <div className="h-16 w-16 bg-white rounded-3xl flex items-center justify-center shadow-sm mb-4">
+                      <MessageSquare className="h-8 w-8 text-slate-200" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-400">No messages yet. Say hi to your driver!</p>
+                  </div>
+                ) : (
+                  chatMessages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-4 rounded-3xl text-sm font-bold shadow-sm ${
+                        msg.type === 'sent' 
+                          ? 'bg-indigo-600 text-white rounded-tr-none' 
+                          : 'bg-white text-slate-900 rounded-tl-none border border-slate-100'
+                      }`}>
+                        {msg.message}
+                        <p className={`text-[8px] mt-1 opacity-60 ${msg.type === 'sent' ? 'text-right' : 'text-left'}`}>
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <form onSubmit={sendMessage} className="p-6 bg-white/50 border-t border-slate-100">
+                <div className="relative group">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type a message..."
+                    className="w-full pl-6 pr-14 py-4 bg-slate-100 border-2 border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95 transition-all"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Receipt Modal */}
+      <AnimatePresence>
+        {showReceipt && lastRide && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowReceipt(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+              
+              <div className="text-center mb-10">
+                <div className="h-20 w-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="h-10 w-10 text-indigo-600" />
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 mb-2">Trip Receipt</h2>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Thank you for riding with RideDeck</p>
+              </div>
+
+              <div className="space-y-6 mb-10">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                  <span className="text-slate-500 font-bold">Base Fare</span>
+                  <span className="text-slate-900 font-black">₹{(lastRide.fare * 0.8).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                  <span className="text-slate-500 font-bold">Taxes & Fees</span>
+                  <span className="text-slate-900 font-black">₹{(lastRide.fare * 0.15).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                  <span className="text-slate-500 font-bold">Booking Fee</span>
+                  <span className="text-slate-900 font-black">₹{(lastRide.fare * 0.05).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-xl font-black text-slate-900">Total Paid</span>
+                  <span className="text-3xl font-black text-indigo-600">₹{lastRide.fare}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-3xl p-6 mb-10 border border-slate-100">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <Car className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vehicle</p>
+                    <p className="text-sm font-bold text-slate-900 capitalize">{lastRide.vehicleType}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <Clock className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+                    <p className="text-sm font-bold text-slate-900">{new Date(lastRide.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowReceipt(false)}
+                className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-slate-200 hover:scale-[1.02] transition-all"
+              >
+                Done
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

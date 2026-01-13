@@ -44,8 +44,12 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
   useEffect(() => {
     if (!map || !pickup || !dropoff) return;
 
-    if (routingControlRef.current) {
-      map.removeControl(routingControlRef.current);
+    if (routingControlRef.current && map) {
+      try {
+        map.removeControl(routingControlRef.current);
+      } catch (e) {
+        console.warn('Error removing existing routing control:', e);
+      }
     }
 
     const routingControl = L.Routing.control({
@@ -83,8 +87,13 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
     routingControlRef.current = routingControl;
 
     return () => {
-      if (routingControlRef.current) {
-        map.removeControl(routingControlRef.current);
+      if (routingControlRef.current && map) {
+        try {
+          map.removeControl(routingControlRef.current);
+        } catch (e) {
+          console.warn('Error removing routing control:', e);
+        }
+        routingControlRef.current = null;
       }
     };
   }, [map, pickup, dropoff, onRouteFound]);

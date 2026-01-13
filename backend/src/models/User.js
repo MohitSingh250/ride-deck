@@ -62,6 +62,43 @@ const userSchema = new mongoose.Schema({
     lat: Number,
     lng: Number,
   },
+  walletBalance: {
+    type: Number,
+    default: 0,
+  },
+  bankAccount: {
+    accountNumber: String,
+    ifscCode: String,
+    bankName: String,
+    holderName: String,
+  },
+  kycStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected', 'none'],
+    default: 'none',
+  },
+  kycDocuments: {
+    license: String,
+    rc: String,
+    selfie: String,
+  },
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  referralCount: {
+    type: Number,
+    default: 0,
+  },
+  loyaltyPoints: {
+    type: Number,
+    default: 0,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

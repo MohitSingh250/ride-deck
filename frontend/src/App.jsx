@@ -13,6 +13,11 @@ import DriverDashboard from './pages/DriverDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import RideHistory from './pages/RideHistory';
 import Profile from './pages/Profile';
+import Help from './pages/Help';
+import Deals from './pages/Deals';
+import Wallet from './pages/Wallet';
+import KYC from './pages/KYC';
+import Referral from './pages/Referral';
 import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 import { Toaster } from 'react-hot-toast';
@@ -42,6 +47,24 @@ function App() {
                 <Route path="/history" element={
                   <ProtectedRoute>
                     <RideHistory />
+                  </ProtectedRoute>
+                } />
+                <Route path="/help" element={
+                  <ProtectedRoute>
+                    <Help />
+                  </ProtectedRoute>
+                } />
+                <Route path="/deals" element={
+                  <ProtectedRoute>
+                    <Deals />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
+                <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
+                <Route path="/wallet" element={
+                  <ProtectedRoute>
+                    <Wallet />
                   </ProtectedRoute>
                 } />
                 <Route path="/rider-dashboard" element={

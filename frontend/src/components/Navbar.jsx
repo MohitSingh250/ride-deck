@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, User as UserIcon, LogOut, ChevronDown, History, HelpCircle, Settings } from 'lucide-react';
+import { Menu, X, User as UserIcon, LogOut, ChevronDown, History, HelpCircle, Settings, Gift, Wallet as WalletIcon, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar = () => {
@@ -89,10 +89,30 @@ const Navbar = () => {
                               <History className="h-4 w-4" />
                               Ride History
                             </Link>
+                            <Link to="/wallet" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                              <WalletIcon className="h-4 w-4" />
+                              My Wallet
+                            </Link>
+                            {user.role === 'rider' && (
+                              <Link to="/deals" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                <Gift className="h-4 w-4" />
+                                My Rewards
+                              </Link>
+                            )}
+                            <Link to="/referral" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                              <Gift className="h-4 w-4" />
+                              Refer & Earn
+                            </Link>
                             <Link to="/help" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
                               <HelpCircle className="h-4 w-4" />
                               Help & Support
                             </Link>
+                            {user.role === 'admin' && (
+                              <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
+                                <Shield className="h-4 w-4" />
+                                Admin Panel
+                              </Link>
+                            )}
                           </div>
 
                           <div className="p-2 border-t border-slate-100">
@@ -167,6 +187,18 @@ const Navbar = () => {
                       <History className="h-5 w-5" />
                       History
                     </Link>
+                    {user.role === 'rider' && (
+                      <Link to="/deals" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 text-slate-600 rounded-2xl font-bold">
+                        <Gift className="h-5 w-5" />
+                        Rewards
+                      </Link>
+                    )}
+                    {user.role === 'admin' && (
+                      <Link to="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 text-indigo-600 rounded-2xl font-bold">
+                        <Shield className="h-5 w-5" />
+                        Admin Panel
+                      </Link>
+                    )}
                     <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-4 text-red-500 rounded-2xl font-bold">
                       <LogOut className="h-5 w-5" />
                       Sign Out

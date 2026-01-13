@@ -99,7 +99,7 @@ const Home = () => {
                     >
                         <div className="relative z-10 bg-white p-4 rounded-[3rem] shadow-2xl border border-slate-100 transform hover:scale-[1.02] transition-transform duration-500">
                             <img 
-                                src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.1.0" 
+                                src="/hero_premium.png" 
                                 alt="Premium Ride" 
                                 className="w-full h-[600px] object-cover rounded-[2.5rem]" 
                             />
@@ -151,10 +151,18 @@ const Home = () => {
                         ].map((feature, i) => (
                             <motion.div 
                                 key={i}
-                                whileHover={{ y: -10 }}
-                                className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-2xl hover:border-transparent transition-all duration-300"
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.2, duration: 0.8 }}
+                                whileHover={{ 
+                                    y: -15,
+                                    scale: 1.02,
+                                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.05)"
+                                }}
+                                className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:bg-white hover:border-transparent transition-all duration-300 group"
                             >
-                                <div className={`w-16 h-16 ${feature.color} rounded-2xl flex items-center justify-center mb-8 shadow-sm`}>
+                                <div className={`w-16 h-16 ${feature.color} rounded-2xl flex items-center justify-center mb-8 shadow-sm group-hover:scale-110 transition-transform duration-500`}>
                                     <feature.icon className="h-8 w-8" />
                                 </div>
                                 <h4 className="text-2xl font-black text-slate-900 mb-4">{feature.title}</h4>
@@ -298,7 +306,7 @@ const Home = () => {
                     <div className="relative h-64 w-full bg-blue-50 rounded-3xl overflow-hidden mb-8 transition-transform transform group-hover:-translate-y-2 duration-300">
                         <div className="absolute inset-0 bg-blue-500 opacity-10 group-hover:opacity-20 transition-opacity"></div>
                         <img 
-                            src="/step_request_color.png" 
+                            src="/step_request_premium.png" 
                             alt="Step 1" 
                             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" 
                         />
@@ -321,7 +329,7 @@ const Home = () => {
                         <div className="absolute inset-0 bg-purple-600 mix-blend-color z-10 opacity-60"></div>
                         <div className="absolute inset-0 bg-purple-100 z-0"></div>
                         <img 
-                            src="/step_track.png" 
+                            src="/step_track_premium.png" 
                             alt="Step 2" 
                             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 relative z-0 mix-blend-multiply" 
                         />
@@ -344,7 +352,7 @@ const Home = () => {
                         <div className="absolute inset-0 bg-teal-600 mix-blend-color z-10 opacity-60"></div>
                         <div className="absolute inset-0 bg-teal-100 z-0"></div>
                         <img 
-                            src="/step_ride.png" 
+                            src="/step_ride_premium.png" 
                             alt="Step 3" 
                             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 relative z-0 mix-blend-multiply" 
                         />
@@ -406,7 +414,7 @@ const Home = () => {
             <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
                 <div className="order-2 lg:order-1">
                     <img 
-                        src="/hero.png" 
+                        src="/hero_premium.png" 
                         alt="City Ride" 
                         className="w-full h-auto rounded-3xl shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-500"
                     />
@@ -485,7 +493,7 @@ const Home = () => {
                     </div>
                     <div className="relative">
                         <img 
-                            src="/account.png" 
+                            src="/account_premium.png" 
                             alt="Community" 
                             className="w-full h-auto rounded-2xl shadow-lg border-4 border-gray-800"
                         />

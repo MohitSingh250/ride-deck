@@ -68,4 +68,82 @@ router.post('/status', auth, authorize('driver'), async (req, res) => {
   }
 });
 
+// Get driver stats
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const Transaction = require('../models/Transaction');
+    const Ride = require('../models/Ride');
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [todayTransactions, totalRides, user] = await Promise.all([
+      Transaction.find({ 
+        userId: req.user._id, 
+        category: 'ride_fare',
+        createdAt: { $gte: today }
+      }),
+      Ride.countDocuments({ driverId: req.user._id, status: 'completed' }),
+      User.findById(req.user._id).select('walletBalance')
+    ]);
+
+    const todayEarnings = todayTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+    res.json({
+      todayEarnings,
+      totalRides,
+      walletBalance: user.walletBalance
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// Get earnings history (last 7 days)
+router.get('/earnings-history', auth, async (req, res) => {
+  try {
+    const Transaction = require('../models/Transaction');
+    const history = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const dayTransactions = await Transaction.find({
+        userId: req.user._id,
+        category: 'ride_fare',
+        createdAt: { $gte: date, $lt: nextDate }
+      });
+
+      const amount = dayTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+      history.push({
+        date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        amount
+      });
+    }
+
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// Submit KYC documents
+router.post('/kyc', auth, authorize('driver'), async (req, res) => {
+  const { kycDocuments } = req.body;
+  try {
+    const user = await User.findById(req.user._id);
+    user.kycDocuments = kycDocuments;
+    user.kycStatus = 'pending';
+    await user.save();
+    res.json({ message: 'KYC documents submitted successfully', kycStatus: user.kycStatus });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
 module.exports = router;

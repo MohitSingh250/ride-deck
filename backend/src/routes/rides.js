@@ -22,6 +22,11 @@ router.post('/book', auth, async (req, res) => {
       return res.status(400).json({ message: 'You already have an active ride.' });
     }
 
+    const user = await User.findById(riderId);
+    if (user.walletBalance < fare) {
+      return res.status(400).json({ message: 'Insufficient wallet balance. Please top up.' });
+    }
+
     // Mock coordinates for routing (New Delhi area)
     const pickupLat = 28.6139 + (Math.random() - 0.5) * 0.05;
     const pickupLng = 77.2090 + (Math.random() - 0.5) * 0.05;
@@ -41,7 +46,7 @@ router.post('/book', auth, async (req, res) => {
         lng: dropoffLng
       },
       vehicleType,
-      fare: fare || 50,
+      fare,
       otp: Math.floor(1000 + Math.random() * 9000).toString(),
     });
 
@@ -101,6 +106,10 @@ router.post('/accept', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only drivers can accept rides' });
     }
 
+    if (!driver.isOnline) {
+      return res.status(403).json({ message: 'You must be online to accept rides' });
+    }
+
     // Check subscription
     if (driver.subscriptionStatus !== 'active' || (driver.subscriptionExpiry && new Date() > driver.subscriptionExpiry)) {
       driver.subscriptionStatus = 'expired';
@@ -119,6 +128,9 @@ router.post('/accept', auth, async (req, res) => {
     // Notify rider that ride has been accepted
     const io = req.app.get('io');
     io.to(ride.riderId.toString()).emit('rideAccepted', ride);
+    
+    // Also notify drivers to remove this ride from their list
+    io.emit('rideTaken', rideId);
 
     res.json(ride);
   } catch (error) {
@@ -148,13 +160,63 @@ router.post('/update-status', auth, async (req, res) => {
       ride.driverId = null;
     }
     
-    await ride.save();
+    if (status === 'completed') {
+      const session = await User.startSession();
+      session.startTransaction();
+      try {
+        const rider = await User.findById(ride.riderId).session(session);
+        const driver = await User.findById(ride.driverId).session(session);
 
-    // Notify other party about status update
-    const io = req.app.get('io');
-    const targetId = req.user.role === 'driver' ? ride.riderId : ride.driverId;
-    if (targetId) {
-      io.to(targetId.toString()).emit('rideStatusUpdate', ride);
+        if (!rider || !driver) {
+          throw new Error('Rider or Driver not found');
+        }
+
+        if (rider.walletBalance < ride.fare) {
+          throw new Error('Rider has insufficient balance');
+        }
+
+        // Deduct from rider
+        rider.walletBalance -= ride.fare;
+        
+        // Add loyalty points (10% of fare)
+        const earnedPoints = Math.floor(ride.fare * 0.1);
+        rider.loyaltyPoints = (rider.loyaltyPoints || 0) + earnedPoints;
+        
+        await rider.save({ session });
+
+        // Add to driver
+        driver.walletBalance += ride.fare;
+        await driver.save({ session });
+
+        // Create transactions
+        const Transaction = require('../models/Transaction');
+        
+        await Transaction.create([
+          {
+            userId: rider._id,
+            amount: ride.fare,
+            type: 'debit',
+            category: 'ride_fare',
+            description: `Ride to ${ride.dropoff.address}`,
+            rideId: ride._id
+          },
+          {
+            userId: driver._id,
+            amount: ride.fare,
+            type: 'credit',
+            category: 'ride_fare',
+            description: `Ride from ${ride.pickup.address}`,
+            rideId: ride._id
+          }
+        ], { session });
+
+        await session.commitTransaction();
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        session.endSession();
+      }
     }
 
     res.json(ride);
