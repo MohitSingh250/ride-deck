@@ -9,10 +9,19 @@ const { auth } = require('../middleware/authMiddleware');
 // @desc    Book a new ride
 // @access  Private
 router.post('/book', auth, async (req, res) => {
-    const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords } = req.body;
+    const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords, paymentMethod } = req.body;
     const riderId = req.user._id;
 
     try {
+      // Input Validation
+      if (!pickup || !dropoff || !pickupCoords || !dropoffCoords || !fare) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      if (!pickupCoords.lat || !pickupCoords.lng || !dropoffCoords.lat || !dropoffCoords.lng) {
+        return res.status(400).json({ message: 'Invalid coordinates' });
+      }
+
       // Check for existing active ride
       const existingRide = await Ride.findOne({ 
         riderId, 
@@ -24,8 +33,10 @@ router.post('/book', auth, async (req, res) => {
       }
 
       const user = await User.findById(riderId);
-      if (user.walletBalance < fare) {
-        return res.status(400).json({ message: 'Insufficient wallet balance. Please top up.' });
+      
+      // Only check balance if paying via wallet
+      if (paymentMethod === 'wallet' && user.walletBalance < fare) {
+        return res.status(400).json({ message: 'Insufficient wallet balance. Please top up or select Cash.' });
       }
 
       // Use provided coordinates or fallback to mock (New Delhi area)
@@ -48,6 +59,7 @@ router.post('/book', auth, async (req, res) => {
       },
       vehicleType,
       fare,
+      paymentMethod: paymentMethod || 'cash',
       otp: Math.floor(1000 + Math.random() * 9000).toString(),
     });
 
@@ -105,18 +117,59 @@ router.post('/book', auth, async (req, res) => {
       }
     }
 
+    const populatedRide = await Ride.findById(ride._id).populate('riderId', 'name phone rating');
+
     const io = req.app.get('io');
     if (targetDrivers.length > 0) {
       targetDrivers.forEach(driver => {
         io.to(driver._id.toString()).emit('newRideRequest', {
-          ...ride.toObject(),
+          ...populatedRide.toObject(),
           sponsoredBy: sponsoredBrandName
         });
       });
     } else {
-      io.emit('newRideRequest', ride);
+      io.emit('newRideRequest', populatedRide);
     }
 
+    res.status(201).json(ride);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// @route   POST /api/rides/schedule
+// @desc    Schedule a ride for later
+// @access  Private
+router.post('/schedule', auth, async (req, res) => {
+  const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords, scheduledTime } = req.body;
+  const riderId = req.user._id;
+
+  try {
+    if (!scheduledTime) {
+      return res.status(400).json({ message: 'Scheduled time is required.' });
+    }
+
+    const ride = new Ride({
+      riderId,
+      pickup: { 
+        address: pickup,
+        lat: pickupCoords?.lat,
+        lng: pickupCoords?.lng
+      },
+      dropoff: { 
+        address: dropoff,
+        lat: dropoffCoords?.lat,
+        lng: dropoffCoords?.lng
+      },
+      vehicleType,
+      fare,
+      isScheduled: true,
+      scheduledTime: new Date(scheduledTime),
+      status: 'scheduled',
+      otp: Math.floor(1000 + Math.random() * 9000).toString(),
+    });
+
+    await ride.save();
     res.status(201).json(ride);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
@@ -199,14 +252,16 @@ router.post('/accept', auth, async (req, res) => {
     ride.driverId = driverId;
     await ride.save();
 
+    const populatedRide = await Ride.findById(ride._id).populate('riderId', 'name phone rating');
+
     // Notify rider that ride has been accepted
     const io = req.app.get('io');
-    io.to(ride.riderId.toString()).emit('rideAccepted', ride);
+    io.to(ride.riderId.toString()).emit('rideAccepted', populatedRide);
     
     // Also notify drivers to remove this ride from their list
     io.emit('rideTaken', rideId);
 
-    res.json(ride);
+    res.json(populatedRide);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
@@ -268,22 +323,25 @@ router.post('/update-status', auth, async (req, res) => {
             throw new Error('Rider or Driver not found');
           }
 
-          if (rider.walletBalance < ride.fare) {
-            throw new Error('Rider has insufficient balance');
+          if (ride.paymentMethod === 'wallet') {
+            if (rider.walletBalance < ride.fare) {
+              throw new Error('Rider has insufficient balance');
+            }
+            // Deduct from rider
+            rider.walletBalance -= ride.fare;
+            await rider.save({ session });
           }
 
-          // Deduct from rider
-          rider.walletBalance -= ride.fare;
-          
           // Add loyalty points (10% of fare)
           const earnedPoints = Math.floor(ride.fare * 0.1);
           rider.loyaltyPoints = (rider.loyaltyPoints || 0) + earnedPoints;
-          
           await rider.save({ session });
 
-          // Add to driver
-          driver.walletBalance += ride.fare;
-          await driver.save({ session });
+          // Add to driver (for wallet rides only, or handle cash logic separately)
+          if (ride.paymentMethod === 'wallet') {
+            driver.walletBalance += ride.fare;
+            await driver.save({ session });
+          }
 
           // Create transactions
           await Transaction.create([
@@ -303,7 +361,7 @@ router.post('/update-status', auth, async (req, res) => {
               description: `Ride from ${ride.pickup.address}`,
               rideId: ride._id
             }
-          ], { session });
+          ], { session, ordered: true });
         });
         session.endSession();
       } catch (transactionError) {
@@ -317,19 +375,24 @@ router.post('/update-status', auth, async (req, res) => {
           return res.status(404).json({ message: 'Rider or Driver not found' });
         }
 
-        if (rider.walletBalance < ride.fare) {
-          return res.status(400).json({ message: 'Rider has insufficient balance' });
+        if (ride.paymentMethod === 'wallet') {
+          if (rider.walletBalance < ride.fare) {
+            return res.status(400).json({ message: 'Rider has insufficient balance' });
+          }
+          // Deduct from rider
+          rider.walletBalance -= ride.fare;
+          await rider.save();
         }
 
-        // Deduct from rider
-        rider.walletBalance -= ride.fare;
         const earnedPoints = Math.floor(ride.fare * 0.1);
         rider.loyaltyPoints = (rider.loyaltyPoints || 0) + earnedPoints;
         await rider.save();
 
         // Add to driver
-        driver.walletBalance += ride.fare;
-        await driver.save();
+        if (ride.paymentMethod === 'wallet') {
+          driver.walletBalance += ride.fare;
+          await driver.save();
+        }
 
         // Create transactions
         await Transaction.create([
@@ -361,8 +424,20 @@ router.post('/update-status', auth, async (req, res) => {
     if (ride.driverId) io.to(ride.driverId.toString()).emit('rideStatusUpdate', ride);
     
     // If cancelled, we might need to notify the driver even if ride.driverId was just set to null
-    if (status === 'cancelled' && req.body.originalDriverId) {
-       io.to(req.body.originalDriverId).emit('rideStatusUpdate', ride);
+    if (status === 'cancelled') {
+       if (req.body.originalDriverId) {
+          io.to(req.body.originalDriverId).emit('rideStatusUpdate', ride);
+       }
+       // If cancelled by driver, we should ideally re-queue the ride.
+       // For now, we'll notify the rider so they can re-book or we can auto-retry on frontend.
+       if (req.user.role === 'driver') {
+         ride.driverId = null;
+         ride.status = 'searching'; // Re-open for other drivers
+         await ride.save();
+         io.emit('newRideRequest', ride); // Broadcast to all drivers again
+         io.to(ride.riderId.toString()).emit('rideStatusUpdate', { ...ride.toObject(), status: 'searching', message: 'Driver cancelled. Searching for new driver...' });
+         return res.json(ride);
+       }
     }
 
     res.json(ride);
@@ -472,7 +547,8 @@ router.post('/estimate-fare', auth, async (req, res) => {
         base: rate.base,
         distanceFare: Math.round(distanceKm * rate.perKm),
         timeFare: Math.round(durationMin * rate.perMin),
-        surge: `${surgeMultiplier.toFixed(1)}x`,
+        surge: surgeMultiplier,
+        surgeAmount: Math.round(fare * (surgeMultiplier - 1)),
         factors: {
           traffic: `${((trafficFactor - 1) * 100).toFixed(0)}% extra`,
           weather: currentWeather,
@@ -482,6 +558,32 @@ router.post('/estimate-fare', auth, async (req, res) => {
         sponsoredBy: sponsoredBy
       }
     });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// @route   POST /api/rides/sos
+// @desc    Trigger SOS alert
+// @access  Private
+router.post('/sos', auth, async (req, res) => {
+  const { rideId } = req.body;
+  try {
+    const ride = await Ride.findById(rideId).populate('riderId', 'name phone');
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('admin-sos-alert', {
+        userName: ride.riderId.name,
+        rideId: ride._id,
+        location: ride.pickup // In a real app, this would be current live location
+      });
+      // Also emit to specific admin room if you have one, e.g., io.to('admin-room').emit(...)
+      console.log(`SOS Alert sent for ride ${ride._id}`);
+    }
+
+    res.json({ message: 'SOS alert sent to authorities and admin' });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }

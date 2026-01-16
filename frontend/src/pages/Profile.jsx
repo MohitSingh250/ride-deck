@@ -1,210 +1,134 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Phone, LogOut, Camera, Star, Home, Briefcase, Plus, Trash2, Shield, MapPin, Clock, Wallet as WalletIcon } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { User, Mail, Phone, MapPin, Shield, CreditCard, Gift, LogOut, ChevronRight, Camera, Edit2, CheckCircle, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Profile = () => {
-  const { user } = useAuth();
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user, logout } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+  };
 
-  const [profileData, setProfileData] = useState(user);
+  const menuItems = [
+    { icon: CreditCard, label: 'Payment Methods', color: 'text-zinc-400' },
+    { icon: Shield, label: 'Safety & Security', color: 'text-zinc-400' },
+    { icon: Gift, label: 'Refer & Earn', color: 'text-zinc-400', link: '/referral' },
+    { icon: MapPin, label: 'Saved Places', color: 'text-zinc-400' },
+  ];
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/users/profile`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const data = await response.json();
-        if (response.ok) setProfileData(data);
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      }
-    };
-
-    const fetchReviews = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/reviews/user/${user._id}`);
-        const data = await response.json();
-        setReviews(data);
-      } catch (error) {
-        console.error('Error fetching reviews:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchProfile();
-      fetchReviews();
-    }
-  }, [user, API_URL]);
+  if (user?.role === 'driver') {
+    menuItems.unshift({
+      icon: user.kycStatus === 'verified' ? CheckCircle : AlertTriangle,
+      label: 'Verify Identity',
+      color: user.kycStatus === 'verified' ? 'text-emerald-500' : 'text-amber-500',
+      link: '/kyc',
+      value: user.kycStatus === 'verified' ? 'Verified' : (user.kycStatus === 'pending' ? 'Pending' : 'Action Required')
+    });
+  }
 
   return (
-    <div className="pt-32 min-h-screen bg-slate-50 relative overflow-hidden">
-      {/* Background Decorations */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-[120px] opacity-50"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-100 rounded-full blur-[120px] opacity-50"></div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-12 pb-20">
+    <div className="min-h-screen bg-white pt-24 pb-12 px-6 lg:px-12">
+      <div className="max-w-4xl mx-auto space-y-12">
         {/* Profile Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass p-10 rounded-[3.5rem] shadow-2xl border-white/40 flex flex-col md:flex-row items-center gap-10"
-        >
+        <div className="flex flex-col md:flex-row items-center gap-8">
           <div className="relative group">
-            <div className="h-40 w-40 bg-slate-900 rounded-[3rem] flex items-center justify-center text-white text-6xl font-black overflow-hidden shadow-2xl transform group-hover:rotate-3 transition-transform duration-500">
-              {profileData.profilePicture ? (
-                <img src={profileData.profilePicture} alt={profileData.name} className="h-full w-full object-cover" />
-              ) : (
-                profileData.name[0]
-              )}
+            <div className="w-32 h-32 bg-zinc-900 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-2xl">
+              {user?.name?.[0] || 'U'}
             </div>
-            <button className="absolute -bottom-2 -right-2 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 hover:bg-slate-50 transition-all group-hover:scale-110">
-              <Camera className="h-6 w-6 text-indigo-600" />
+            <button className="absolute bottom-0 right-0 p-2 bg-white border border-zinc-100 rounded-full shadow-lg hover:bg-zinc-50 transition-all opacity-0 group-hover:opacity-100">
+              <Camera className="h-5 w-5 text-black" />
             </button>
           </div>
-
-          <div className="flex-1 text-center md:text-left space-y-4">
-            <div className="space-y-1">
-              <h1 className="text-5xl font-black text-slate-900 tracking-tight">{profileData.name}</h1>
-              <p className="text-lg font-bold text-slate-400">{profileData.email || profileData.phone}</p>
-            </div>
-            <div className="flex items-center justify-center md:justify-start gap-6">
-              <div className="flex items-center gap-2 bg-white/50 px-4 py-2 rounded-2xl border border-white/40">
-                <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
-                <span className="text-lg font-black text-slate-900">{profileData.rating || '5.0'}</span>
-                <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">({profileData.totalRatings || 0} reviews)</span>
-              </div>
-              <span className="accent-gradient text-white px-5 py-2 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100">
-                {profileData.role}
+          <div className="text-center md:text-left">
+            <h1 className="text-4xl font-bold text-black tracking-tight">{user?.name}</h1>
+            <p className="text-zinc-500 font-medium">{user?.email}</p>
+            <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-3">
+              <span className="px-3 py-1 bg-zinc-100 text-zinc-600 text-xs font-bold uppercase tracking-widest rounded-full">
+                {user?.role || 'Rider'}
+              </span>
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-600 text-xs font-bold uppercase tracking-widest rounded-full">
+                Verified
               </span>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-3 w-full md:w-auto">
-            <button className="bg-slate-900 text-white px-10 py-5 rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 uppercase tracking-widest text-sm">
-              Edit Profile
-            </button>
+        {/* Profile Sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Personal Info */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-black">Personal Information</h3>
+              <button onClick={() => setIsEditing(!isEditing)} className="p-2 hover:bg-zinc-100 rounded-full transition-all">
+                <Edit2 className="h-4 w-4 text-black" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-center gap-4">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                  <Mail className="h-5 w-5 text-zinc-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Email</p>
+                  <p className="font-bold text-black">{user?.email}</p>
+                </div>
+              </div>
+              <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-center gap-4">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                  <Phone className="h-5 w-5 text-zinc-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Phone</p>
+                  <p className="font-bold text-black">{user?.phone || 'Not provided'}</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Info Section */}
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-1 space-y-8"
-          >
-            <div className="glass p-8 rounded-[3rem] shadow-xl border-white/40 space-y-8">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                <Shield className="h-6 w-6 text-indigo-600" />
-                Account Info
-              </h3>
-              <div className="space-y-6">
-                <div className="flex items-center gap-5">
-                  <div className="p-4 bg-indigo-50 rounded-2xl text-indigo-600">
-                    <Phone className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Phone</p>
-                    <p className="font-black text-slate-900">{profileData.phone}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600">
-                    <WalletIcon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Wallet</p>
-                    <p className="font-black text-slate-900">₹{profileData.walletBalance?.toLocaleString() || '0'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div className="p-4 bg-purple-50 rounded-2xl text-purple-600">
-                    <Clock className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Joined</p>
-                    <p className="font-black text-slate-900">{new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
-                  </div>
-                </div>
-                {user.role === 'driver' && (
-                  <div className="flex items-center gap-5">
-                    <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600">
-                      <MapPin className="h-6 w-6" />
+          {/* Account Settings */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-black">Account Settings</h3>
+            <div className="space-y-2">
+              {menuItems.map((item, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => item.link && navigate(item.link)}
+                  className="w-full p-4 flex items-center justify-between hover:bg-zinc-50 rounded-2xl transition-all group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center group-hover:bg-white transition-all">
+                      <item.icon className={`h-5 w-5 ${item.color}`} />
                     </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Vehicle</p>
-                      <p className="font-black text-slate-900">{user.vehicleNumber}</p>
-                      <p className="text-xs font-bold text-slate-500 uppercase">{user.vehicleType}</p>
-                    </div>
+                    <span className="font-bold text-black">{item.label}</span>
                   </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Reviews Section */}
-          <motion.div 
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="lg:col-span-2 space-y-8"
-          >
-            <div className="glass p-10 rounded-[3.5rem] shadow-xl border-white/40 space-y-10">
-              <div className="flex items-center justify-between">
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight">Recent Feedback</h3>
-                <div className="h-12 w-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-                  <Star className="h-6 w-6" />
-                </div>
-              </div>
-              
-              {loading ? (
-                <div className="space-y-6">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-32 bg-slate-50/50 rounded-3xl animate-pulse border border-slate-100"></div>
-                  ))}
-                </div>
-              ) : reviews.length > 0 ? (
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review._id} className="bg-white/50 p-8 rounded-[2.5rem] border border-white/60 hover:bg-white transition-colors group">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`h-4 w-4 ${i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-100'}`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          {new Date(review.createdAt).toLocaleDateString()}
+                  <div className="flex items-center gap-2">
+                    {item.value && (
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.color.includes('emerald') ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {item.value}
                         </span>
-                      </div>
-                      <p className="text-lg font-bold text-slate-700 leading-relaxed italic">"{review.comment}"</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-20 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-100">
-                  <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-                    <Star className="h-10 w-10 text-slate-200" />
+                    )}
+                    <ChevronRight className="h-5 w-5 text-zinc-300 group-hover:text-black transition-all" />
                   </div>
-                  <p className="text-slate-400 font-black uppercase tracking-widest text-sm">No reviews yet</p>
-                </div>
-              )}
+                </button>
+              ))}
             </div>
-          </motion.div>
+          </div>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="pt-12 border-t border-zinc-100">
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-3 text-rose-500 font-bold hover:underline"
+          >
+            <LogOut className="h-5 w-5" /> Sign Out
+          </button>
         </div>
       </div>
     </div>

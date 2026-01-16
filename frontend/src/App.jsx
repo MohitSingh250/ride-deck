@@ -34,11 +34,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <Home />
-                  </ProtectedRoute>
-                } />
+                <Route path="/" element={<Home />} />
                 <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
@@ -59,7 +55,7 @@ function App() {
                     <Deals />
                   </ProtectedRoute>
                 } />
-                <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
                 <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
                 <Route path="/wallet" element={
@@ -68,18 +64,13 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="/rider-dashboard" element={
-                  <ProtectedRoute role="rider">
+                  <ProtectedRoute allowedRoles={['rider']}>
                     <RiderDashboard />
                   </ProtectedRoute>
                 } />
                 <Route path="/driver-dashboard" element={
-                  <ProtectedRoute role="driver">
+                  <ProtectedRoute allowedRoles={['driver']}>
                     <DriverDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin" element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
                   </ProtectedRoute>
                 } />
               </Routes>

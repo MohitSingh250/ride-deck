@@ -31,8 +31,10 @@ router.post('/subscribe', auth, authorize('driver'), async (req, res) => {
     res.json({ 
       success: true, 
       message: `Subscribed to ${type} plan successfully`,
-      subscriptionStatus: user.subscriptionStatus, 
-      expiry: user.subscriptionExpiry 
+      user: {
+        ...user.toObject(),
+        password: undefined
+      }
     });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
@@ -141,17 +143,107 @@ router.get('/earnings-history', auth, async (req, res) => {
   }
 });
 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure Multer Storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    if (!req.user) return cb(new Error('User not authenticated in upload'));
+    // Use process.cwd() to ensure we are relative to the running process (backend root)
+    const dir = path.join(process.cwd(), 'uploads/kyc/');
+    if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    if (!req.user) return cb(new Error('User not authenticated in upload'));
+    cb(null, `${req.user._id}-${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|pdf/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only images and PDFs are allowed!'));
+  }
+});
+
+const uploadMiddleware = upload.fields([
+  { name: 'license', maxCount: 1 },
+  { name: 'rc', maxCount: 1 },
+  { name: 'selfie', maxCount: 1 },
+  { name: 'insurance', maxCount: 1 }
+]);
+
 // Submit KYC documents
-router.post('/kyc', auth, authorize('driver'), async (req, res) => {
-  const { kycDocuments } = req.body;
+router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
+  uploadMiddleware(req, res, (err) => {
+    if (err) {
+      console.error('Multer Upload Error:', err);
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ message: `Upload error: ${err.message}`, error: err.code });
+      }
+      return res.status(500).json({ message: `Server upload error: ${err.message}`, error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    console.log('KYC Route: Started');
     const user = await User.findById(req.user._id);
+    
+    if (!user) {
+        console.error('KYC Route: User not found');
+        return res.status(404).json({ message: 'User not found' });
+    }
+    
+    console.log('KYC Route: User found', user._id);
+    console.log('KYC Route: Files received', req.files ? Object.keys(req.files) : 'No files');
+    
+    if (!req.files || Object.keys(req.files).length === 0) {
+      return res.status(400).json({ message: 'Please upload all required documents' });
+    }
+
+    const API_URL = process.env.API_URL || 'http://localhost:5001';
+    
+    const getFilePath = (fieldName) => {
+        if (req.files && req.files[fieldName] && req.files[fieldName][0]) {
+            // Normalize path separators for Windows compatibility if needed, though usually fine
+            return `${API_URL}/${req.files[fieldName][0].path.replace(/\\/g, '/')}`;
+        }
+        return user.kycDocuments ? user.kycDocuments[fieldName] : undefined;
+    };
+
+    const kycDocuments = {
+      license: getFilePath('license'),
+      rc: getFilePath('rc'),
+      selfie: getFilePath('selfie'),
+      insurance: getFilePath('insurance')
+    };
+
+    console.log('KYC Route: Constructed kycDocuments', kycDocuments);
+
     user.kycDocuments = kycDocuments;
     user.kycStatus = 'pending';
+    
+    console.log('KYC Route: Saving user...');
     await user.save();
-    res.json({ message: 'KYC documents submitted successfully', kycStatus: user.kycStatus });
+    console.log('KYC Route: User saved successfully');
+    
+    res.json({ message: 'KYC documents submitted successfully', kycStatus: user.kycStatus, documents: kycDocuments });
   } catch (error) {
-    res.status(500).json({ message: 'Server Error', error: error.message });
+    console.error('KYC Route Error:', error);
+    res.status(500).json({ message: 'Server Error', error: error.message, stack: error.stack });
   }
 });
 

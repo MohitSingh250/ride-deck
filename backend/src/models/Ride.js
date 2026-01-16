@@ -26,10 +26,22 @@ const rideSchema = new mongoose.Schema({
     required: true,
   },
   fare: Number,
+  paymentMethod: {
+    type: String,
+    enum: ['wallet', 'cash'],
+    default: 'cash'
+  },
   status: {
     type: String,
-    enum: ['searching', 'accepted', 'arrived', 'started', 'completed', 'cancelled'],
+    enum: ['searching', 'accepted', 'arrived', 'started', 'completed', 'cancelled', 'scheduled'],
     default: 'searching',
+  },
+  isScheduled: {
+    type: Boolean,
+    default: false,
+  },
+  scheduledTime: {
+    type: Date,
   },
   otp: String, // For ride start verification
   rating: {

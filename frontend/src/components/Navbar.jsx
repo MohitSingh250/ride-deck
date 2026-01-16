@@ -1,224 +1,146 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Menu, X, User, LogOut, ChevronDown, Globe, HelpCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, User as UserIcon, LogOut, ChevronDown, History, HelpCircle, Settings, Gift, Wallet as WalletIcon, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
+    setIsOpen(false);
   };
 
   return (
-    <nav className={`fixed w-full z-[80] transition-all duration-500 ${
-      scrolled 
-        ? 'py-3 bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/20' 
-        : 'py-5 bg-transparent'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center group">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center mr-3 group-hover:rotate-12 transition-transform duration-300 shadow-lg shadow-indigo-200">
-                <span className="text-white font-black text-xl">R</span>
-              </div>
-              <span className="text-2xl font-black tracking-tighter text-slate-900">
-                RideDeck<span className="text-indigo-600">.</span>
-              </span>
-            </Link>
-          </div>
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled ? 'bg-white shadow-md py-3' : 'bg-white py-4'}`}>
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between">
+        {/* Left Side: Logo & Main Links */}
+        <div className="flex items-center gap-10">
+          <Link to="/" className="text-2xl font-bold text-black tracking-tighter">
+            RideDeck
+          </Link>
 
-          <div className="hidden md:flex items-center gap-8">
-            {user ? (
-              <>
-                {user.role !== 'admin' && (
-                  <Link 
-                    to={user.role === 'driver' ? '/driver-dashboard' : '/rider-dashboard'}
-                    className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors"
-                  >
-                    {user.role === 'driver' ? 'Driver Portal' : 'Book a Ride'}
-                  </Link>
-                )}
-                
-                <div className="relative">
-                  <button
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-3 pl-3 pr-2 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-all group"
-                  >
-                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
-                      {user.name.charAt(0)}
-                    </div>
-                    <span className="text-sm font-bold text-slate-700">{user.name}</span>
-                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  <AnimatePresence>
-                    {isDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)} />
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-20"
-                        >
-                          <div className="p-6 bg-slate-50/50 border-b border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Account</p>
-                            <p className="text-base font-black text-slate-900 truncate">{user.email || user.phone}</p>
-                          </div>
-                          
-                          <div className="p-2">
-                            <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                              <UserIcon className="h-4 w-4" />
-                              Profile Settings
-                            </Link>
-                            {user.role !== 'admin' && (
-                              <>
-                                <Link to="/history" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                  <History className="h-4 w-4" />
-                                  Ride History
-                                </Link>
-                                <Link to="/wallet" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                  <WalletIcon className="h-4 w-4" />
-                                  My Wallet
-                                </Link>
-                                {user.role === 'rider' && (
-                                  <Link to="/deals" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                    <Gift className="h-4 w-4" />
-                                    My Rewards
-                                  </Link>
-                                )}
-                                <Link to="/referral" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                  <Gift className="h-4 w-4" />
-                                  Refer & Earn
-                                </Link>
-                                <Link to="/help" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                  <HelpCircle className="h-4 w-4" />
-                                  Help & Support
-                                </Link>
-                              </>
-                            )}
-                            {user.role === 'admin' && (
-                              <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all">
-                                <Shield className="h-4 w-4" />
-                                Admin Panel
-                              </Link>
-                            )}
-                          </div>
-
-                          <div className="p-2 border-t border-slate-100">
-                            <button
-                              onClick={handleLogout}
-                              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                            >
-                              <LogOut className="h-4 w-4" />
-                              Sign Out
-                            </button>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </>
+          <div className="hidden md:flex items-center gap-6">
+            {user?.role === 'driver' ? (
+              <Link to="/driver-dashboard" className="text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">Dashboard</Link>
             ) : (
-              <div className="flex items-center gap-4">
-                <Link to="/login" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors px-4 py-2">
-                  Log in
-                </Link>
-                <Link to="/signup" className="bg-indigo-600 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-indigo-700 transition-all transform hover:-translate-y-0.5 shadow-lg shadow-indigo-200">
-                  Get Started
-                </Link>
-              </div>
+              <Link to="/rider-dashboard" className="text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">Ride</Link>
             )}
+            <Link to="/history" className="text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">Activity</Link>
+            <Link to="/about" className="text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">About</Link>
           </div>
+        </div>
 
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-xl bg-slate-50 text-slate-600 hover:text-indigo-600 transition-colors"
-            >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        {/* Right Side: User Actions */}
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4 mr-4">
+            <button className="flex items-center gap-2 text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">
+              <Globe className="h-4 w-4" /> EN
+            </button>
+            <button className="flex items-center gap-2 text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">
+              <HelpCircle className="h-4 w-4" /> Help
             </button>
           </div>
+
+          {user ? (
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 px-4 py-2 rounded-full transition-all"
+              >
+                <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center">
+                  <User className="h-3 w-3 text-white" />
+                </div>
+                <span className="text-sm font-medium text-black">{user.name.split(' ')[0]}</span>
+                <ChevronDown className={`h-4 w-4 text-zinc-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {showUserMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-zinc-100 py-2 z-50"
+                  >
+                    <div className="px-4 py-3 border-b border-zinc-50">
+                      <p className="text-sm font-bold text-black">{user.name}</p>
+                      <p className="text-xs text-zinc-500">{user.email}</p>
+                    </div>
+                    <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50 transition-all">
+                      <User className="h-4 w-4" /> Profile
+                    </Link>
+                    <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-rose-600 hover:bg-rose-50 transition-all">
+                      <LogOut className="h-4 w-4" /> Sign Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Link to="/login" className="text-sm font-medium text-black hover:bg-zinc-100 px-4 py-2 rounded-full transition-all">
+                Log in
+              </Link>
+              <Link to="/signup" className="uber-btn-black px-5 py-2 text-sm rounded-full">
+                Sign up
+              </Link>
+            </div>
+          )}
+
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden p-2 hover:bg-zinc-100 rounded-full transition-all"
+          >
+            {isOpen ? <X className="h-6 w-6 text-black" /> : <Menu className="h-6 w-6 text-black" />}
+          </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-t border-slate-100 overflow-hidden"
+            className="md:hidden bg-white border-t border-zinc-100 overflow-hidden"
           >
-            <div className="px-4 py-6 space-y-4">
-              {user ? (
-                <>
-                  <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-3xl">
-                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl">
-                      {user.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-lg font-black text-slate-900">{user.name}</p>
-                      <p className="text-sm font-bold text-slate-500">{user.email || user.phone}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    <Link to={user.role === 'driver' ? '/driver-dashboard' : '/rider-dashboard'} onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 bg-indigo-50 text-indigo-600 rounded-2xl font-bold">
-                      <Settings className="h-5 w-5" />
-                      Dashboard
-                    </Link>
-                    <Link to="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 text-slate-600 rounded-2xl font-bold">
-                      <UserIcon className="h-5 w-5" />
-                      Profile
-                    </Link>
-                    <Link to="/history" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 text-slate-600 rounded-2xl font-bold">
-                      <History className="h-5 w-5" />
-                      History
-                    </Link>
-                    {user.role === 'rider' && (
-                      <Link to="/deals" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 text-slate-600 rounded-2xl font-bold">
-                        <Gift className="h-5 w-5" />
-                        Rewards
-                      </Link>
-                    )}
-                    {user.role === 'admin' && (
-                      <Link to="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-4 text-indigo-600 rounded-2xl font-bold">
-                        <Shield className="h-5 w-5" />
-                        Admin Panel
-                      </Link>
-                    )}
-                    <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-4 text-red-500 rounded-2xl font-bold">
-                      <LogOut className="h-5 w-5" />
-                      Sign Out
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  <Link to="/login" onClick={() => setIsOpen(false)} className="w-full py-4 text-center font-bold text-slate-600 bg-slate-50 rounded-2xl">
-                    Log In
-                  </Link>
-                  <Link to="/signup" onClick={() => setIsOpen(false)} className="w-full py-4 text-center font-bold text-white bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100">
-                    Sign Up
-                  </Link>
+            <div className="px-6 py-8 space-y-6">
+              <div className="flex flex-col gap-4">
+                {user?.role === 'driver' ? (
+                  <Link to="/driver-dashboard" onClick={() => setIsOpen(false)} className="text-xl font-bold text-black">Dashboard</Link>
+                ) : (
+                  <Link to="/rider-dashboard" onClick={() => setIsOpen(false)} className="text-xl font-bold text-black">Ride</Link>
+                )}
+                <Link to="/history" onClick={() => setIsOpen(false)} className="text-xl font-bold text-black">Activity</Link>
+                <Link to="/about" onClick={() => setIsOpen(false)} className="text-xl font-bold text-black">About</Link>
+              </div>
+
+              {!user && (
+                <div className="flex flex-col gap-3 pt-6 border-t border-zinc-100">
+                  <Link to="/login" onClick={() => setIsOpen(false)} className="uber-btn-white w-full py-4">Log in</Link>
+                  <Link to="/signup" onClick={() => setIsOpen(false)} className="uber-btn-black w-full py-4">Sign up</Link>
+                </div>
+              )}
+
+              {user && (
+                <div className="pt-6 border-t border-zinc-100">
+                  <button onClick={handleLogout} className="text-xl font-bold text-rose-600">Sign Out</button>
                 </div>
               )}
             </div>

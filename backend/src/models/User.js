@@ -88,6 +88,7 @@ const userSchema = new mongoose.Schema({
     license: String,
     rc: String,
     selfie: String,
+    insurance: String,
   },
   referralCode: {
     type: String,

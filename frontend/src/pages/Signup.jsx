@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
-import { User, Phone, Lock, Bike, Car, Truck, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Phone, Lock, Car, Shield, ArrowRight, ChevronRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -11,171 +12,206 @@ const Signup = () => {
     password: '',
     role: 'rider',
     vehicleType: 'bike',
-    vehicleNumber: '',
+    vehicleNumber: ''
   });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
 
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
-    const result = await signup(formData);
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.message);
+    try {
+      const result = await signup(formData);
+      if (result.success) {
+        toast.success('Account created successfully!');
+        navigate('/');
+      } else {
+        toast.error(result.message || 'Signup failed');
+      }
+    } catch (error) {
+      toast.error('Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Decorations */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-[120px] opacity-50"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-100 rounded-full blur-[120px] opacity-50"></div>
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-white pt-16">
+      {/* Left Side: Branding/Illustration */}
+      <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-zinc-900 to-black" />
+        </div>
+        <div className="relative z-10 max-w-md text-center">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-6xl font-bold text-white mb-6 tracking-tighter"
+          >
+            Join RideDeck
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-xl text-zinc-400 font-medium"
+          >
+            Start your journey with us today.
+          </motion.p>
+        </div>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8 relative z-10"
-      >
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[2rem] bg-indigo-600 text-white mb-8 shadow-2xl shadow-indigo-200 transform -rotate-12">
-            <User className="h-10 w-10" />
+      {/* Right Side: Signup Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16">
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="w-full max-w-md space-y-8"
+        >
+          <div>
+            <h2 className="text-4xl font-bold text-black tracking-tight mb-2">Create account</h2>
+            <p className="text-zinc-500 font-medium">Join thousands of riders and drivers</p>
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-2">Create account</h2>
-          <p className="text-slate-500 font-bold">Join the RideDeck community today</p>
-        </div>
 
-        <div className="glass p-10 rounded-[3rem] shadow-2xl border-white/40">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-rose-50 text-rose-500 p-4 rounded-2xl text-center text-sm font-bold border border-rose-100"
-              >
-                {error}
-              </motion.div>
-            )}
+          {/* Role Selection */}
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setFormData({ ...formData, role: 'rider' })}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col gap-2 ${formData.role === 'rider' ? 'border-black bg-zinc-50' : 'border-zinc-100 hover:border-zinc-200'}`}
+            >
+              <User className={`h-6 w-6 ${formData.role === 'rider' ? 'text-black' : 'text-zinc-400'}`} />
+              <span className={`font-bold text-sm ${formData.role === 'rider' ? 'text-black' : 'text-zinc-500'}`}>Rider</span>
+            </button>
+            <button
+              onClick={() => setFormData({ ...formData, role: 'driver' })}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col gap-2 ${formData.role === 'driver' ? 'border-black bg-zinc-50' : 'border-zinc-100 hover:border-zinc-200'}`}
+            >
+              <Car className={`h-6 w-6 ${formData.role === 'driver' ? 'text-black' : 'text-zinc-400'}`} />
+              <span className={`font-bold text-sm ${formData.role === 'driver' ? 'text-black' : 'text-zinc-500'}`}>Driver</span>
+            </button>
+          </div>
 
-            <div className="space-y-4">
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-black uppercase tracking-wider">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
                 <input
                   type="text"
-                  required
-                  className="block w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold"
-                  placeholder="Full Name"
+                  name="name"
+                  placeholder="John Doe"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={handleChange}
+                  className="uber-input w-full pl-12"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-                </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-black uppercase tracking-wider">Phone Number</label>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
                 <input
                   type="tel"
-                  required
-                  className="block w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold"
-                  placeholder="Phone Number"
+                  name="phone"
+                  placeholder="+91 98765 43210"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={handleChange}
+                  className="uber-input w-full pl-12"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-                </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-black uppercase tracking-wider">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
                 <input
                   type="password"
-                  required
-                  className="block w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold"
-                  placeholder="Password"
+                  name="password"
+                  placeholder="••••••••"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={handleChange}
+                  className="uber-input w-full pl-12"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'rider' })}
-                  className={`py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 ${formData.role === 'rider' ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg shadow-indigo-100' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
-                >
-                  Ride
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'driver' })}
-                  className={`py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 ${formData.role === 'driver' ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg shadow-indigo-100' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
-                >
-                  Drive
-                </button>
-              </div>
-
+            {/* Driver Specific Fields */}
+            <AnimatePresence>
               {formData.role === 'driver' && (
                 <motion.div 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className="space-y-4 pt-4"
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-6 overflow-hidden"
                 >
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { id: 'bike', icon: Bike },
-                      { id: 'auto', icon: Truck },
-                      { id: 'cab', icon: Car },
-                    ].map((v) => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, vehicleType: v.id })}
-                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${formData.vehicleType === v.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-black uppercase tracking-wider">Vehicle Type</label>
+                    <div className="relative">
+                      <Car className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                      <select
+                        name="vehicleType"
+                        value={formData.vehicleType}
+                        onChange={handleChange}
+                        className="uber-input w-full pl-12 appearance-none"
                       >
-                        <v.icon className={`h-6 w-6 ${formData.vehicleType === v.id ? 'text-indigo-600' : 'text-slate-400'}`} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${formData.vehicleType === v.id ? 'text-indigo-600' : 'text-slate-400'}`}>{v.id}</span>
-                      </button>
-                    ))}
+                        <option value="bike">Bike</option>
+                        <option value="auto">Auto</option>
+                        <option value="cab">Cab</option>
+                      </select>
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    required
-                    className="block w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all font-bold"
-                    placeholder="Vehicle Number"
-                    value={formData.vehicleNumber}
-                    onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                  />
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-black uppercase tracking-wider">Vehicle Number</label>
+                    <div className="relative">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                      <input
+                        type="text"
+                        name="vehicleNumber"
+                        placeholder="DL 1C AB 1234"
+                        value={formData.vehicleNumber}
+                        onChange={handleChange}
+                        className="uber-input w-full pl-12"
+                        required={formData.role === 'driver'}
+                      />
+                    </div>
+                  </div>
                 </motion.div>
               )}
-            </div>
+            </AnimatePresence>
 
-            <button
-              type="submit"
+            <button 
+              type="submit" 
               disabled={loading}
-              className="w-full py-6 accent-gradient text-white text-lg font-black rounded-[1.5rem] shadow-2xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all uppercase tracking-widest flex items-center justify-center gap-3"
+              className="uber-btn-black w-full py-4 text-lg flex items-center justify-center gap-2 group"
             >
-              {loading ? 'Creating...' : 'Sign Up'}
-              {!loading && <ArrowRight className="h-6 w-6" />}
+              {loading ? (
+                <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  Create account <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
           </form>
-        </div>
 
-        <div className="text-center">
-          <Link to="/login" className="text-sm font-bold text-slate-400 hover:text-indigo-600 transition-colors">
-            Already have an account? <span className="text-indigo-600">Sign in</span>
-          </Link>
-        </div>
-      </motion.div>
+          <div className="pt-8 border-t border-zinc-100">
+            <p className="text-zinc-500 font-medium">
+              Already have an account? {' '}
+              <Link to="/login" className="text-black font-bold hover:underline">Log in</Link>
+            </p>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };

@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 const connectDB = require('./config/db');
 const User = require('./models/User');
 
@@ -25,6 +26,22 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 login/signup requests per hour
+  message: 'Too many login attempts, please try again later.'
+});
+
+// Apply global limiter to all requests
+app.use(limiter);
+
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -37,6 +54,7 @@ const io = new Server(server, {
 // Middleware
 app.use(morgan('dev'));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Database Connection
 connectDB(process.env.MONGO_URI);

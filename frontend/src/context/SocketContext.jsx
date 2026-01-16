@@ -30,7 +30,7 @@ export const SocketProvider = ({ children }) => {
 
       return () => newSocket.close();
     }
-  }, [user]);
+  }, [user?.token]);
 
   return (
     <SocketContext.Provider value={socket}>

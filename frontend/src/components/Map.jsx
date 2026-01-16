@@ -94,14 +94,15 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
     }
 
     return () => {
-      if (routingControlRef.current && map) {
+      if (routingControlRef.current) {
         try {
           // Check if the control is still on the map before removing
-          if (map.hasLayer && typeof map.removeControl === 'function') {
+          if (map && map.removeControl) {
             map.removeControl(routingControlRef.current);
           }
         } catch (e) {
-          // Ignore cleanup errors
+          // Ignore cleanup errors - often happens if map is already destroyed
+          console.debug('Routing cleanup error:', e);
         }
         routingControlRef.current = null;
       }
@@ -127,13 +128,43 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
   return null;
 };
 
-const RecenterAutomatically = ({ lat, lng }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.setView([lat, lng]);
-  }, [lat, lng, map]);
-  return null;
-};
+  // Auto-fit bounds
+  const RecenterMap = ({ pickup, dropoff, markers }) => {
+    const map = useMap();
+
+    useEffect(() => {
+      if (!map) return;
+
+      const bounds = L.latLngBounds([]);
+      
+      if (pickup) bounds.extend(pickup);
+      if (dropoff) bounds.extend(dropoff);
+      if (markers && markers.length > 0) {
+        markers.forEach(m => bounds.extend(m.position));
+      }
+
+      if (bounds.isValid()) {
+        map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 15, duration: 1.5 });
+      }
+    }, [pickup, dropoff, markers, map]);
+
+    return null;
+  };
+
+  const pickupIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Green pin
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30]
+  });
+
+  const dropoffIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Red pin
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30],
+    className: 'hue-rotate-180' // CSS filter to make it red
+  });
 
 const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dropoff, onRouteFound, children }) => {
   return (
@@ -142,8 +173,8 @@ const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dro
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {!pickup && <RecenterAutomatically lat={center[0]} lng={center[1]} />}
-      {pickup && !dropoff && <RecenterAutomatically lat={pickup[0]} lng={pickup[1]} />}
+      
+      <RecenterMap pickup={pickup} dropoff={dropoff} markers={markers} />
       
       {markers.map((marker, index) => {
         let icon = DefaultIcon;
@@ -158,12 +189,22 @@ const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dro
       })}
 
       {pickup && !dropoff && (
-        <Marker position={pickup} icon={DefaultIcon}>
+        <Marker position={pickup} icon={pickupIcon}>
           <Popup>Pickup Location</Popup>
         </Marker>
       )}
 
-      {pickup && dropoff && <Routing pickup={pickup} dropoff={dropoff} onRouteFound={onRouteFound} />}
+      {pickup && dropoff && (
+        <>
+          <Marker position={pickup} icon={pickupIcon}>
+             <Popup>Pickup</Popup>
+          </Marker>
+          <Marker position={dropoff} icon={dropoffIcon}>
+             <Popup>Dropoff</Popup>
+          </Marker>
+          <Routing pickup={pickup} dropoff={dropoff} onRouteFound={onRouteFound} />
+        </>
+      )}
       {children}
     </MapContainer>
   );

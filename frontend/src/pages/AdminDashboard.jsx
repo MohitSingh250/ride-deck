@@ -24,22 +24,27 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({ totalUsers: 0, totalDrivers: 0, totalRides: 0, revenue: 0 });
   const [pendingDrivers, setPendingDrivers] = useState([]);
+  const [allDrivers, setAllDrivers] = useState([]);
   const [recentRides, setRecentRides] = useState([]);
   const [activeRides, setActiveRides] = useState([]);
   const [liveLocations, setLiveLocations] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedDriverDocs, setSelectedDriverDocs] = useState(null);
   const socket = useSocket();
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   const fetchData = async () => {
     try {
-      const [statsRes, driversRes, ridesRes] = await Promise.all([
+      const [statsRes, driversRes, allDriversRes, ridesRes] = await Promise.all([
         fetch(`${API_URL}/api/admin/stats`, {
           headers: { 'Authorization': `Bearer ${user.token}` }
         }),
         fetch(`${API_URL}/api/admin/drivers/pending`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        }),
+        fetch(`${API_URL}/api/admin/drivers`, {
           headers: { 'Authorization': `Bearer ${user.token}` }
         }),
         fetch(`${API_URL}/api/admin/rides`, {
@@ -49,10 +54,12 @@ const AdminDashboard = () => {
 
       const statsData = await statsRes.json();
       const driversData = await driversRes.json();
+      const allDriversData = await allDriversRes.json();
       const ridesData = await ridesRes.json();
 
       if (statsRes.ok) setStats(statsData);
       if (driversRes.ok) setPendingDrivers(driversData);
+      if (allDriversRes.ok) setAllDrivers(allDriversData);
       if (ridesRes.ok) setRecentRides(ridesData);
     } catch (error) {
       toast.error('Failed to fetch admin data');
@@ -127,6 +134,28 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleForceCancel = async (rideId) => {
+    if (!window.confirm('Are you sure you want to force cancel this ride?')) return;
+    try {
+      const response = await fetch(`${API_URL}/api/admin/rides/${rideId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${user.token}` }
+      });
+      if (response.ok) {
+        toast.success('Ride cancelled successfully');
+        // Refresh active rides
+        const res = await fetch(`${API_URL}/api/admin/rides/active`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        if (res.ok) setActiveRides(await res.json());
+      } else {
+        toast.error('Failed to cancel ride');
+      }
+    } catch (error) {
+      toast.error('Error cancelling ride');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -135,31 +164,90 @@ const AdminDashboard = () => {
     );
   }
 
+
+  // ... (existing code)
+
   return (
     <div className="pt-24 pb-20 min-h-screen bg-slate-50 px-4 md:px-8">
+      {/* Document Viewer Modal */}
+      <AnimatePresence>
+        {selectedDriverDocs && (
+          <>
+            <div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm" onClick={() => setSelectedDriverDocs(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div className="bg-white rounded-[2.5rem] p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">KYC Documents</h2>
+                    <p className="text-slate-500 font-bold">Verify documents for {selectedDriverDocs.name}</p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedDriverDocs(null)}
+                    className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  >
+                    <XCircle className="h-8 w-8 text-slate-400" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { title: 'Driving License', src: selectedDriverDocs.kycDocuments?.license },
+                    { title: 'Vehicle RC', src: selectedDriverDocs.kycDocuments?.rc },
+                    { title: 'Selfie', src: selectedDriverDocs.kycDocuments?.selfie }
+                  ].map((doc, i) => (
+                    <div key={i} className="space-y-3">
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{doc.title}</p>
+                      <div className="aspect-[3/4] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
+                        {doc.src ? (
+                          <img 
+                            src={doc.src} 
+                            alt={doc.title} 
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            onClick={() => window.open(doc.src, '_blank')}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold">
+                            No Document
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-4 mt-8 pt-8 border-t border-slate-100">
+                  <button
+                    onClick={() => {
+                      handleVerifyDriver(selectedDriverDocs._id, 'rejected');
+                      setSelectedDriverDocs(null);
+                    }}
+                    className="flex-1 py-4 bg-rose-50 text-rose-600 rounded-xl font-black uppercase tracking-widest hover:bg-rose-100 transition-all"
+                  >
+                    Reject Application
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleVerifyDriver(selectedDriverDocs._id, 'verified');
+                      setSelectedDriverDocs(null);
+                    }}
+                    className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                  >
+                    Approve Driver
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div>
-            <h1 className="text-4xl font-black text-slate-900 mb-2">Admin Command Center</h1>
-            <p className="text-slate-500 font-bold">Platform Overview & Operations</p>
-          </div>
-          <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
-            {['overview', 'drivers', 'rides', 'monitor'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-                  activeTab === tab 
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* ... (existing header code) ... */}
 
         {activeTab === 'overview' && (
           <div className="space-y-10">
@@ -248,20 +336,12 @@ const AdminDashboard = () => {
                             <p className="text-[10px] font-bold text-slate-400">{driver.phone}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleVerifyDriver(driver._id, 'rejected')}
-                            className="p-2 bg-white text-rose-500 rounded-lg border border-slate-100 hover:bg-rose-50 transition-all"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleVerifyDriver(driver._id, 'verified')}
-                            className="p-2 bg-indigo-600 text-white rounded-lg shadow-lg shadow-indigo-100 hover:scale-105 transition-all"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </button>
-                        </div>
+                        <button 
+                          onClick={() => setSelectedDriverDocs(driver)}
+                          className="px-4 py-2 bg-white text-indigo-600 text-xs font-black uppercase tracking-widest rounded-lg border border-indigo-100 hover:bg-indigo-50 transition-all"
+                        >
+                          View Docs
+                        </button>
                       </div>
                     ))
                   )}
@@ -338,6 +418,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+
         {activeTab === 'drivers' && (
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -363,8 +444,7 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {/* This would be a full list in a real app */}
-                  {pendingDrivers.map(driver => (
+                  {allDrivers.map(driver => (
                     <tr key={driver._id} className="hover:bg-slate-50/50 transition-all">
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-3">
@@ -383,18 +463,27 @@ const AdminDashboard = () => {
                       </td>
                       <td className="px-8 py-6">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          driver.kycStatus === 'verified' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                          driver.kycStatus === 'verified' ? 'bg-emerald-50 text-emerald-600' : 
+                          driver.kycStatus === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
                         }`}>
-                          {driver.kycStatus}
+                          {driver.kycStatus || 'Not Started'}
                         </span>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                          <span className="text-sm font-black text-slate-900">{driver.rating}</span>
+                          <span className="text-sm font-black text-slate-900">{driver.rating || '5.0'}</span>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
+                        {driver.kycStatus === 'pending' && (
+                          <button 
+                            onClick={() => setSelectedDriverDocs(driver)}
+                            className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-700 transition-all mr-2"
+                          >
+                            Verify
+                          </button>
+                        )}
                         <button className="p-2 hover:bg-slate-100 rounded-lg transition-all">
                           <MoreVertical className="h-5 w-5 text-slate-400" />
                         </button>
@@ -512,7 +601,7 @@ const AdminDashboard = () => {
                       <p className="text-[10px] font-bold text-slate-600 truncate">{ride.dropoff.address}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-50 mb-4">
                     <div className="flex items-center gap-2">
                       <div className="h-6 w-6 rounded-full bg-indigo-50 flex items-center justify-center text-[8px] font-black text-indigo-600">
                         {ride.riderId?.name[0]}
@@ -528,6 +617,12 @@ const AdminDashboard = () => {
                       </div>
                     )}
                   </div>
+                  <button 
+                    onClick={() => handleForceCancel(ride._id)}
+                    className="w-full py-2 bg-rose-50 text-rose-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all"
+                  >
+                    Force Cancel
+                  </button>
                 </div>
               ))}
             </div>

@@ -11,11 +11,19 @@ const generateToken = (id) => {
   });
 };
 
+const rateLimit = require('express-rate-limit');
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 login/signup requests per hour
+  message: 'Too many login attempts, please try again later.'
+});
+
 // @route   POST /api/auth/register
 // @desc    Register a new user (rider or driver)
 // @access  Public
 router.post(
   '/register',
+  authLimiter,
   [
     check('name', 'Name is required').not().isEmpty(),
     check('phone', 'Please include a valid phone number').isLength({ min: 10 }),
@@ -69,6 +77,7 @@ router.post(
 // @access  Public
 router.post(
   '/login',
+  authLimiter,
   [
     check('phone', 'Phone number is required').not().isEmpty(),
     check('password', 'Password is required').exists(),
@@ -106,5 +115,17 @@ router.post(
     }
   }
 );
+
+// @route   GET /api/auth/me
+// @desc    Get current logged in user
+// @access  Private
+router.get('/me', require('../middleware/authMiddleware').auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
 
 module.exports = router;
