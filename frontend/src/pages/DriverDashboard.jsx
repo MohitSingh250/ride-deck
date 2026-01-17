@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, Navigation, Star, Clock, CheckCircle, Shield, Banknote, Power, AlertCircle, Calendar, Zap, Crown, MessageSquare, Send, X, TrendingUp, ShieldCheck, ChevronRight, Phone, User } from 'lucide-react';
+import { Car, MapPin, Navigation, Star, Clock, CheckCircle, Shield, Banknote, Power, AlertCircle, Calendar, Zap, Crown, MessageSquare, Send, X, TrendingUp, ShieldCheck, ChevronRight, Phone, User, LogOut, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -8,11 +8,12 @@ import Map from '../components/Map';
 import Modal from '../components/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 const DriverDashboard = () => {
-  const { user, updateUser } = useAuth();
-  const socket = useSocket();
+  const { user, logout, updateUser } = useAuth();
+  const { socket, isOnline, setIsOnline } = useSocket();
   const navigate = useNavigate();
-  const [isOnline, setIsOnline] = useState(user?.isOnline || false);
   const [availableRides, setAvailableRides] = useState([]);
   const [currentRide, setCurrentRide] = useState(null);
   const [otp, setOtp] = useState('');
@@ -53,21 +54,25 @@ const DriverDashboard = () => {
     }
   };
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-
   const [stats, setStats] = useState({ todayEarnings: 0, totalRides: 0, walletBalance: 0 });
   const [earningsHistory, setEarningsHistory] = useState([]);
+  const lastFetchToken = useRef(null);
+  const lastActiveRideToken = useRef(null);
 
   // Sync isOnline with context
   useEffect(() => {
     if (user) {
-      setIsOnline(user.isOnline);
+      setIsOnline(!!user.isOnline);
     }
   }, [user?.isOnline]);
 
   // Initial Data Fetch
   useEffect(() => {
     const fetchStats = async () => {
+      if (!user?.token || lastFetchToken.current === user.token) return;
+      lastFetchToken.current = user.token;
+      console.log('Fetching driver stats...');
+      
       try {
         const [statsRes, earningsHistoryRes] = await Promise.all([
           fetch(`${API_URL}/api/driver/stats`, {
@@ -85,12 +90,16 @@ const DriverDashboard = () => {
       }
     };
 
-    if (user) fetchStats();
-  }, [user?.token, API_URL]);
+    fetchStats();
+  }, [user?.token]);
 
   // Fetch Active Ride
   useEffect(() => {
     const fetchActiveRide = async () => {
+      if (!user?.token || lastActiveRideToken.current === user.token) return;
+      lastActiveRideToken.current = user.token;
+      console.log('Fetching active ride...');
+
       setFetchingActiveRide(true);
       try {
         const res = await fetch(`${API_URL}/api/rides/my-ride`, {
@@ -105,8 +114,8 @@ const DriverDashboard = () => {
       }
     };
 
-    if (user) fetchActiveRide();
-  }, [user?.token, API_URL]);
+    fetchActiveRide();
+  }, [user?.token]);
 
   // Geolocation & Location Broadcasting
   useEffect(() => {
@@ -217,6 +226,9 @@ const DriverDashboard = () => {
 
   const handleAcceptRide = async (rideId) => {
     setLoading(true);
+    // Optimistic update
+    setAvailableRides(prev => prev.filter(r => r._id !== rideId));
+    
     try {
       const response = await fetch(`${API_URL}/api/rides/accept`, {
         method: 'POST',
@@ -230,10 +242,12 @@ const DriverDashboard = () => {
       const data = await response.json();
       if (response.ok) {
         setCurrentRide(data);
-        setAvailableRides(prev => prev.filter(r => r._id !== rideId));
         toast.success('Ride accepted!');
       } else {
+        // Revert if failed
         toast.error(data.message);
+        // We might want to re-fetch available rides here if we really wanted to be safe, 
+        // but for now we'll just show the error.
       }
     } catch (error) {
       toast.error('Failed to accept ride');

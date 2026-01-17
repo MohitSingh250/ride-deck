@@ -31,7 +31,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDriverDocs, setSelectedDriverDocs] = useState(null);
-  const socket = useSocket();
+  const { socket } = useSocket();
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 

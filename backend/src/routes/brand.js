@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Campaign = require('../models/Campaign');
+const Brand = require('../models/Brand');
 const Coupon = require('../models/Coupon');
 const { auth } = require('../middleware/authMiddleware');
 

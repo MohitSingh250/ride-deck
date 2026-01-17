@@ -7,6 +7,13 @@ const SocketContext = createContext(null);
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const { user } = useAuth();
+  const [isOnline, setIsOnline] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setIsOnline(!!user.isOnline);
+    }
+  }, [user?.isOnline]);
 
   useEffect(() => {
     if (user && user.token) {
@@ -32,8 +39,14 @@ export const SocketProvider = ({ children }) => {
     }
   }, [user?.token]);
 
+  const value = React.useMemo(() => ({
+    socket,
+    isOnline,
+    setIsOnline
+  }), [socket, isOnline]);
+
   return (
-    <SocketContext.Provider value={socket}>
+    <SocketContext.Provider value={value}>
       {children}
     </SocketContext.Provider>
   );

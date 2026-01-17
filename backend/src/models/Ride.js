@@ -86,11 +86,10 @@ const rideSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-rideSchema.pre('save', function(next) {
+rideSchema.pre('save', function() {
   if (!this.otp) {
     this.otp = Math.floor(1000 + Math.random() * 9000).toString();
   }
-  next();
 });
 
 rideSchema.index({ 'pickup': '2dsphere' });

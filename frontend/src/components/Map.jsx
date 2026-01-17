@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
@@ -179,11 +179,12 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
 
 const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dropoff, onRouteFound, children }) => {
   return (
-    <MapContainer center={center} zoom={zoom} scrollWheelZoom={false} className="h-full w-full z-0">
+    <MapContainer center={center} zoom={zoom} scrollWheelZoom={false} zoomControl={false} className="h-full w-full z-0">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <ZoomControl position="bottomright" />
       
       <RecenterMap pickup={pickup} dropoff={dropoff} markers={markers} />
       

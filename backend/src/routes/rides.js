@@ -27,7 +27,7 @@ router.post('/book', auth, async (req, res) => {
       // Check for existing active ride
       const existingRide = await Ride.findOne({ 
         riderId, 
-        status: { $in: ['searching', 'accepted', 'started'] } 
+        status: { $in: ['searching', 'booked', 'arrived', 'started'] } 
       });
 
       if (existingRide) {
@@ -119,7 +119,7 @@ router.post('/book', auth, async (req, res) => {
 
     // If ride is sponsored, prioritize drivers opted into that brand's campaign
     // If ride is sponsored, prioritize drivers opted into that brand's campaign
-    const Campaign = require('../models/Campaign');
+    // const Campaign = require('../models/Campaign'); // Removed duplicate
     let sponsoredBrandName = null;
 
     // Check for active campaigns near pickup
@@ -549,27 +549,18 @@ router.post('/estimate-fare', auth, async (req, res) => {
           isOnline: true,
           subscriptionStatus: 'active',
           currentLocation: {
-            $near: {
-              $geometry: {
-                type: 'Point',
-                coordinates: [pickupCoords.lng, pickupCoords.lat]
-              },
-              $maxDistance: 5000
+            $geoWithin: {
+              $centerSphere: [[pickupCoords.lng, pickupCoords.lat], 5 / 6378.1] // 5km radius
             }
           }
         });
 
         // 2. Count Active Requests (Searching) in 5km radius
-        // Note: We need a 2dsphere index on 'pickup' in Ride model for this to work efficiently
         activeRequests = await Ride.countDocuments({
           status: 'searching',
           pickup: {
-            $near: {
-              $geometry: {
-                type: 'Point',
-                coordinates: [pickupCoords.lng, pickupCoords.lat]
-              },
-              $maxDistance: 5000
+            $geoWithin: {
+              $centerSphere: [[pickupCoords.lng, pickupCoords.lat], 5 / 6378.1] // 5km radius
             }
           }
         });

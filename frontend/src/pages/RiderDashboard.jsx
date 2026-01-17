@@ -13,7 +13,7 @@ import InRideOffer from '../components/InRideOffer';
 
 const RiderDashboard = () => {
   const { user } = useAuth();
-  const socket = useSocket();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
@@ -199,27 +199,15 @@ const RiderDashboard = () => {
             setCurrentRide(ride);
             
             if (ride.status === 'searching') {
-              const createdAt = new Date(ride.createdAt).getTime();
-              const elapsed = Date.now() - createdAt;
-              const remaining = 60000 - elapsed;
-
-              if (remaining > 0) {
-                setRideStatus('searching');
-                const timeout = setTimeout(() => {
-                  setRideStatus('idle');
-                  toast.error('No drivers found. Please try again.');
-                  handleCancelRide(ride._id);
-                }, remaining);
-                setSearchTimeout(timeout);
-              } else {
-                // Time expired, cancel it
-                handleCancelRide(ride._id);
-                return; // Don't set other state if cancelled
-              }
+              setRideStatus('searching');
+              // We don't auto-cancel here anymore. Let the user decide or let the existing timeout (if any) handle it.
+              // If we wanted to enforce a timeout, we would need to re-establish it based on createdAt, 
+              // but for now, we'll trust the user to cancel if they are tired of waiting.
             } else {
               setRideStatus(ride.status === 'accepted' ? 'booked' : 
                            ride.status === 'started' ? 'in-ride' : 
-                           ride.status === 'arrived' ? 'arrived' : 'idle');
+                           ride.status === 'arrived' ? 'arrived' : 
+                           ride.status === 'completed' ? 'completed' : 'idle');
             }
 
             if (ride.driverId) setDriver(ride.driverId);
