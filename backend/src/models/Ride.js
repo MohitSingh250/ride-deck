@@ -11,18 +11,32 @@ const rideSchema = new mongoose.Schema({
     ref: 'User',
   },
   pickup: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      required: true,
+    },
     address: String,
-    lat: Number,
-    lng: Number,
   },
   dropoff: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      required: true,
+    },
     address: String,
-    lat: Number,
-    lng: Number,
   },
   vehicleType: {
     type: String,
-    enum: ['bike', 'auto', 'cab'],
+    enum: ['bike', 'auto', 'cab', 'go', 'premier', 'xl'],
     required: true,
   },
   fare: Number,
@@ -33,7 +47,7 @@ const rideSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['searching', 'accepted', 'arrived', 'started', 'completed', 'cancelled', 'scheduled'],
+    enum: ['searching', 'booked', 'arrived', 'started', 'completed', 'cancelled', 'scheduled'],
     default: 'searching',
   },
   isScheduled: {
@@ -44,11 +58,18 @@ const rideSchema = new mongoose.Schema({
     type: Date,
   },
   otp: String, // For ride start verification
-  rating: {
+  riderRating: {
     type: Number,
     min: 1,
     max: 5,
   },
+  driverRating: {
+    type: Number,
+    min: 1,
+    max: 5,
+  },
+  riderReview: String,
+  driverReview: String,
   priceLocked: {
     type: Boolean,
     default: true,
@@ -64,5 +85,14 @@ const rideSchema = new mongoose.Schema({
     brand: Number,
   },
 }, { timestamps: true });
+
+rideSchema.pre('save', function(next) {
+  if (!this.otp) {
+    this.otp = Math.floor(1000 + Math.random() * 9000).toString();
+  }
+  next();
+});
+
+rideSchema.index({ 'pickup': '2dsphere' });
 
 module.exports = mongoose.model('Ride', rideSchema);

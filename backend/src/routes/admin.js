@@ -71,7 +71,7 @@ router.post('/drivers/verify', auth, authorize('admin'), async (req, res) => {
     // Emit socket event to the driver
     const io = req.app.get('io');
     if (io) {
-      console.log(`Admin: Emitting kyc-status-update to driver ${driverId}: ${status}`);
+
       io.to(driverId.toString()).emit('kyc-status-update', { 
         status,
         message: `Your KYC has been ${status}`
@@ -79,6 +79,28 @@ router.post('/drivers/verify', auth, authorize('admin'), async (req, res) => {
     }
 
     res.json({ message: `Driver KYC ${status} successfully`, driver });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// @route   POST /api/admin/users/:id/ban
+// @desc    Ban or Unban a user
+// @access  Private/Admin
+router.post('/users/:id/ban', auth, authorize('admin'), async (req, res) => {
+  const { isBanned } = req.body;
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.isBanned = isBanned;
+    // If banning a driver, force them offline
+    if (isBanned && user.role === 'driver') {
+      user.isOnline = false;
+    }
+    await user.save();
+
+    res.json({ message: `User ${isBanned ? 'banned' : 'unbanned'} successfully`, user });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }

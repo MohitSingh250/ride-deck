@@ -94,17 +94,24 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
     }
 
     return () => {
-      if (routingControlRef.current) {
+      const control = routingControlRef.current;
+      if (control) {
+        routingControlRef.current = null;
         try {
-          // Check if the control is still on the map before removing
-          if (map && map.removeControl) {
-            map.removeControl(routingControlRef.current);
+          // Clear waypoints to stop pending requests
+          control.setWaypoints([]);
+          
+          if (map && map.getContainer()) {
+             // Remove synchronously to avoid race conditions
+             try {
+               map.removeControl(control);
+             } catch (e) {
+               // Ignore removal errors
+             }
           }
         } catch (e) {
-          // Ignore cleanup errors - often happens if map is already destroyed
           console.debug('Routing cleanup error:', e);
         }
-        routingControlRef.current = null;
       }
     };
   }, [map]); // Only initialize once
@@ -140,7 +147,11 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
       if (pickup) bounds.extend(pickup);
       if (dropoff) bounds.extend(dropoff);
       if (markers && markers.length > 0) {
-        markers.forEach(m => bounds.extend(m.position));
+        markers.forEach(m => {
+          if (m.position && m.position[0] !== undefined && m.position[1] !== undefined) {
+            bounds.extend(m.position);
+          }
+        });
       }
 
       if (bounds.isValid()) {
@@ -177,6 +188,8 @@ const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dro
       <RecenterMap pickup={pickup} dropoff={dropoff} markers={markers} />
       
       {markers.map((marker, index) => {
+        if (!marker.position || marker.position[0] === undefined || marker.position[1] === undefined) return null;
+        
         let icon = DefaultIcon;
         if (marker.icon === 'car') icon = carIcon;
         if (marker.icon === 'brand') icon = createBrandIcon(marker.logo);
@@ -188,13 +201,14 @@ const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dro
         );
       })}
 
-      {pickup && !dropoff && (
+      {pickup && pickup[0] !== undefined && pickup[1] !== undefined && !dropoff && (
         <Marker position={pickup} icon={pickupIcon}>
           <Popup>Pickup Location</Popup>
         </Marker>
       )}
 
-      {pickup && dropoff && (
+      {pickup && pickup[0] !== undefined && pickup[1] !== undefined && 
+       dropoff && dropoff[0] !== undefined && dropoff[1] !== undefined && (
         <>
           <Marker position={pickup} icon={pickupIcon}>
              <Popup>Pickup</Popup>

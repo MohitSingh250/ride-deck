@@ -1,98 +1,127 @@
 const express = require('express');
 const router = express.Router();
-const Brand = require('../models/Brand');
-const ClaimedOffer = require('../models/ClaimedOffer');
+const Campaign = require('../models/Campaign');
+const Coupon = require('../models/Coupon');
 const { auth } = require('../middleware/authMiddleware');
 
-// Get all active brands
-router.get('/', async (req, res) => {
+// @route   GET /api/brands/nearby
+// @desc    Get active campaigns near a location
+// @access  Private
+router.get('/nearby', auth, async (req, res) => {
   try {
-    const brands = await Brand.find({ isActive: true });
-    res.json(brands);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    const { lat, lng } = req.query;
 
-// Claim an offer
-router.post('/claim', auth, async (req, res) => {
-  const { brandId } = req.body;
-  const userId = req.user._id;
-
-  try {
-    const brand = await Brand.findById(brandId);
-    if (!brand) return res.status(404).json({ message: 'Brand not found' });
-
-    // Check if already claimed recently
-    const existing = await ClaimedOffer.findOne({ 
-      userId, 
-      brandId, 
-      status: 'active',
-      expiryDate: { $gt: new Date() }
-    });
-
-    if (existing) {
-      return res.status(400).json({ message: 'You already have an active offer from this brand' });
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'Latitude and Longitude are required' });
     }
 
-    const offer = new ClaimedOffer({
-      userId,
-      brandId,
-      offerText: brand.offerText,
-      discountCode: brand.discountCode
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+
+    // Find campaigns within radius
+    // Note: We are using a simple $near query. 
+    // In a real app, we would also filter by activeHours and activeDays here or in aggregation.
+    const campaigns = await Campaign.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [longitude, latitude]
+          },
+          $maxDistance: 2000 // Search within 2km (increased from 500m for better demo)
+        }
+      },
+      isActive: true
+    }).populate('brandId', 'name logo category');
+
+    // Filter by active hours (simple check)
+    const now = new Date();
+    const currentHour = now.getHours() * 100 + now.getMinutes(); // e.g., 1430
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const currentDay = days[now.getDay()];
+
+    const activeCampaigns = campaigns.filter(c => {
+      // Check day
+      if (!c.activeDays.includes(currentDay)) return false;
+      // Check time
+      if (currentHour < c.activeHours.start || currentHour > c.activeHours.end) return false;
+      return true;
     });
 
-    await offer.save();
-    res.status(201).json(offer);
+    // Return the closest one (first one since $near sorts by distance)
+    if (activeCampaigns.length > 0) {
+      res.json(activeCampaigns[0]);
+    } else {
+      res.json(null);
+    }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching nearby brands:', error);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
-// Get user's claimed offers
-router.get('/my-offers', auth, async (req, res) => {
+// @route   GET /api/brands/all-active
+// @desc    Get all active campaigns for map display
+// @access  Private
+router.get('/all-active', auth, async (req, res) => {
   try {
-    const offers = await ClaimedOffer.find({ userId: req.user._id })
-      .populate('brandId', 'name logo')
-      .sort({ claimedAt: -1 });
-    res.json(offers);
+    const campaigns = await Campaign.find({ isActive: true }).populate('brandId', 'name logo category');
+    res.json(campaigns);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching active campaigns:', error);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
-// Seed some initial brands for demonstration
-router.post('/seed', async (req, res) => {
+// @route   POST /api/brands/save-coupon
+// @desc    Save a coupon to user's wallet
+// @access  Private
+router.post('/save-coupon', auth, async (req, res) => {
   try {
-    const brands = [
-      {
-        name: 'Dominos',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Domino%27s_pizza_logo.svg/1200px-Domino%27s_pizza_logo.svg.png',
-        locations: [
-          { address: 'Connaught Place, Delhi', lat: 28.6328, lng: 77.2197 },
-          { address: 'Indiranagar, Bangalore', lat: 12.9716, lng: 77.6412 }
-        ],
-        offerText: 'Get 20% off on your next order!',
-        category: 'food',
-        discountCode: 'DOMINOS20'
-      },
-      {
-        name: 'Starbucks',
-        logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/1200px-Starbucks_Corporation_Logo_2011.svg.png',
-        locations: [
-          { address: 'Cyber Hub, Gurgaon', lat: 28.4951, lng: 77.0894 },
-          { address: 'Bandra, Mumbai', lat: 19.0596, lng: 72.8295 }
-        ],
-        offerText: 'Buy 1 Get 1 Free on all beverages!',
-        category: 'food',
-        discountCode: 'STARBUCKSB1G1'
-      }
-    ];
-    await Brand.deleteMany({});
-    await Brand.insertMany(brands);
-    res.json({ message: 'Brands seeded successfully' });
+    const { campaignId } = req.body;
+
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+
+    // Check if already saved
+    const existing = await Coupon.findOne({ userId: req.user._id, campaignId });
+    if (existing) {
+      return res.status(400).json({ message: 'Coupon already saved' });
+    }
+
+    const coupon = new Coupon({
+      userId: req.user._id,
+      campaignId,
+      code: campaign.code
+    });
+
+    await coupon.save();
+
+    res.json({ message: 'Coupon saved to wallet!', coupon });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error saving coupon:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   GET /api/brands/my-coupons
+// @desc    Get user's saved coupons
+// @access  Private
+router.get('/my-coupons', auth, async (req, res) => {
+  try {
+    const coupons = await Coupon.find({ userId: req.user._id })
+      .sort({ savedAt: -1 })
+      .populate({
+        path: 'campaignId',
+        populate: { path: 'brandId' }
+      });
+
+    res.json(coupons);
+  } catch (error) {
+    console.error('Error fetching coupons:', error);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 

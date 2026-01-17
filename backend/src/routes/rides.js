@@ -3,6 +3,7 @@ const router = express.Router();
 const Ride = require('../models/Ride');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const Campaign = require('../models/Campaign');
 const { auth } = require('../middleware/authMiddleware');
 
 // @route   POST /api/rides/book
@@ -13,6 +14,7 @@ router.post('/book', auth, async (req, res) => {
     const riderId = req.user._id;
 
     try {
+
       // Input Validation
       if (!pickup || !dropoff || !pickupCoords || !dropoffCoords || !fare) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -48,14 +50,14 @@ router.post('/book', auth, async (req, res) => {
     const ride = new Ride({
       riderId,
       pickup: { 
-        address: pickup,
-        lat: pickupLat,
-        lng: pickupLng
+        type: 'Point',
+        coordinates: [pickupLng, pickupLat],
+        address: pickup
       },
       dropoff: { 
-        address: dropoff,
-        lat: dropoffLat,
-        lng: dropoffLng
+        type: 'Point',
+        coordinates: [dropoffLng, dropoffLat],
+        address: dropoff
       },
       vehicleType,
       fare,
@@ -66,46 +68,76 @@ router.post('/book', auth, async (req, res) => {
     await ride.save();
 
     // Smart Matching: Find drivers within 5km radius
-    let nearbyDrivers = await User.find({
+    // Map requested tier to driver vehicle type
+    let driverVehicleType = 'cab';
+    if (vehicleType === 'bike') driverVehicleType = 'bike';
+    if (vehicleType === 'auto') driverVehicleType = 'auto';
+
+    const query = {
       role: 'driver',
       isOnline: true,
-      subscriptionStatus: 'active',
+      // subscriptionStatus: 'active',
+      // kycStatus: 'verified', // Enforce KYC
+      // rating: { $gte: 4.0 }, // Enforce minimum rating
+      vehicleType: driverVehicleType,
       currentLocation: {
         $near: {
           $geometry: {
             type: 'Point',
             coordinates: [pickupLng, pickupLat]
           },
-          $maxDistance: 5000 // 5km in meters
+          $maxDistance: 5000 // 5km
         }
       }
-    }).limit(30); // Fetch more to allow for tier-based sorting
+    };
 
-    // Priority Matching: Sort by subscription tier, then rating, then acceptance rate
-    const tierPriority = { 'monthly': 3, 'weekly': 2, 'daily': 1, 'none': 0 };
+    // Stricter requirements for Premier
+    if (vehicleType === 'premier') {
+      query.rating = { $gte: 4.7 };
+    }
+
+    let nearbyDrivers = await User.find(query).limit(30);
+
+    // Priority Matching: Sort by Distance (implicit in $near) then Rating
+    // $near already sorts by distance. We can re-sort if we want to prioritize Rating over small distance differences.
+    // Hybrid Score = (Distance * Weight) - (Rating * Weight)
+    // For now, let's stick to $near (Distance) as primary, but boost high-rated drivers if they are close.
+    
     nearbyDrivers.sort((a, b) => {
-      const tierA = tierPriority[a.subscriptionType] || 0;
-      const tierB = tierPriority[b.subscriptionType] || 0;
-      if (tierB !== tierA) return tierB - tierA;
-      if (b.rating !== a.rating) return b.rating - a.rating;
-      return b.acceptanceRate - a.acceptanceRate;
+      // Calculate distance to pickup
+      const distA = Math.sqrt(Math.pow(a.currentLocation.coordinates[1] - pickupLat, 2) + Math.pow(a.currentLocation.coordinates[0] - pickupLng, 2));
+      const distB = Math.sqrt(Math.pow(b.currentLocation.coordinates[1] - pickupLat, 2) + Math.pow(b.currentLocation.coordinates[0] - pickupLng, 2));
+      
+      // If distance difference is small (< 500m), prioritize higher rating
+      if (Math.abs(distA - distB) < 0.005) {
+        return b.rating - a.rating;
+      }
+      return distA - distB; // Otherwise closest driver wins
     });
 
     nearbyDrivers = nearbyDrivers.slice(0, 15);
 
     // If ride is sponsored, prioritize drivers opted into that brand's campaign
-    const Brand = require('../models/Brand');
-    const brands = await Brand.find();
+    // If ride is sponsored, prioritize drivers opted into that brand's campaign
+    const Campaign = require('../models/Campaign');
     let sponsoredBrandName = null;
-    for (const brand of brands) {
-      for (const loc of brand.locations) {
-        if (Math.sqrt(Math.pow(loc.lat - pickupLat, 2) + Math.pow(loc.lng - pickupLng, 2)) < 0.005 ||
-            Math.sqrt(Math.pow(loc.lat - dropoffLat, 2) + Math.pow(loc.lng - dropoffLng, 2)) < 0.005) {
-          sponsoredBrandName = brand.name;
-          break;
+
+    // Check for active campaigns near pickup
+    const sponsoredCampaign = await Campaign.findOne({
+      isActive: true,
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [pickupLng, pickupLat]
+          },
+          $maxDistance: 500 // 500m radius
         }
       }
-      if (sponsoredBrandName) break;
+    }).populate('brandId');
+
+    if (sponsoredCampaign && sponsoredCampaign.brandId) {
+      sponsoredBrandName = sponsoredCampaign.brandId.name;
     }
 
     let targetDrivers = nearbyDrivers;
@@ -133,6 +165,7 @@ router.post('/book', auth, async (req, res) => {
 
     res.status(201).json(ride);
   } catch (error) {
+    console.error('Error booking ride:', error);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 });
@@ -152,14 +185,14 @@ router.post('/schedule', auth, async (req, res) => {
     const ride = new Ride({
       riderId,
       pickup: { 
-        address: pickup,
-        lat: pickupCoords?.lat,
-        lng: pickupCoords?.lng
+        type: 'Point',
+        coordinates: [pickupCoords?.lng, pickupCoords?.lat],
+        address: pickup
       },
       dropoff: { 
-        address: dropoff,
-        lat: dropoffCoords?.lat,
-        lng: dropoffCoords?.lng
+        type: 'Point',
+        coordinates: [dropoffCoords?.lng, dropoffCoords?.lat],
+        address: dropoff
       },
       vehicleType,
       fare,
@@ -189,8 +222,8 @@ router.get('/available', auth, async (req, res) => {
     if (lat && lng) {
       // Sort by proximity if coordinates provided
       rides = rides.sort((a, b) => {
-        const distA = Math.sqrt(Math.pow(a.pickup.lat - lat, 2) + Math.pow(a.pickup.lng - lng, 2));
-        const distB = Math.sqrt(Math.pow(b.pickup.lat - lat, 2) + Math.pow(b.pickup.lng - lng, 2));
+        const distA = Math.sqrt(Math.pow(a.pickup.coordinates[1] - lat, 2) + Math.pow(a.pickup.coordinates[0] - lng, 2));
+        const distB = Math.sqrt(Math.pow(b.pickup.coordinates[1] - lat, 2) + Math.pow(b.pickup.coordinates[0] - lng, 2));
         return distA - distB;
       });
     }
@@ -220,10 +253,12 @@ router.get('/my-ride', auth, async (req, res) => {
   }
 });
 
+const checkSubscription = require('../middleware/checkSubscription');
+
 // @route   POST /api/rides/accept
 // @desc    Accept a ride
 // @access  Private
-router.post('/accept', auth, async (req, res) => {
+router.post('/accept', auth, checkSubscription, async (req, res) => {
   const { rideId } = req.body;
   const driverId = req.user._id;
 
@@ -238,17 +273,17 @@ router.post('/accept', auth, async (req, res) => {
     }
 
     // Check subscription
-    if (driver.subscriptionStatus !== 'active' || (driver.subscriptionExpiry && new Date() > driver.subscriptionExpiry)) {
-      driver.subscriptionStatus = 'expired';
-      await driver.save();
-      return res.status(403).json({ message: 'Please renew your subscription to accept rides' });
-    }
+    // if (driver.subscriptionStatus !== 'active' || (driver.subscriptionExpiry && new Date() > driver.subscriptionExpiry)) {
+    //   driver.subscriptionStatus = 'expired';
+    //   await driver.save();
+    //   return res.status(403).json({ message: 'Please renew your subscription to accept rides' });
+    // }
 
     const ride = await Ride.findById(rideId);
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
     if (ride.status !== 'searching') return res.status(400).json({ message: 'Ride already accepted' });
 
-    ride.status = 'accepted';
+    ride.status = 'booked';
     ride.driverId = driverId;
     await ride.save();
 
@@ -297,7 +332,7 @@ router.post('/update-status', auth, async (req, res) => {
       
       // Mock Safety Monitoring: Start an interval to check for anomalies
       // In a real app, this would be a background job or a separate service
-      console.log(`Safety monitoring started for ride ${ride._id}`);
+
     }
 
     if (status === 'completed') {
@@ -323,6 +358,7 @@ router.post('/update-status', auth, async (req, res) => {
             throw new Error('Rider or Driver not found');
           }
 
+          // Handle Wallet Payment
           if (ride.paymentMethod === 'wallet') {
             if (rider.walletBalance < ride.fare) {
               throw new Error('Rider has insufficient balance');
@@ -330,6 +366,18 @@ router.post('/update-status', auth, async (req, res) => {
             // Deduct from rider
             rider.walletBalance -= ride.fare;
             await rider.save({ session });
+
+            // Add to driver (Net earnings)
+            driver.walletBalance += driverEarnings;
+            await driver.save({ session });
+          } 
+          // Handle Cash Payment
+          else {
+            // Driver collected full fare in cash.
+            // We need to DEDUCT the platform commission from driver's wallet.
+            // If driver has insufficient balance, we might allow negative or block (for now allow negative)
+            driver.walletBalance -= platformCommission;
+            await driver.save({ session });
           }
 
           // Add loyalty points (10% of fare)
@@ -337,31 +385,29 @@ router.post('/update-status', auth, async (req, res) => {
           rider.loyaltyPoints = (rider.loyaltyPoints || 0) + earnedPoints;
           await rider.save({ session });
 
-          // Add to driver (for wallet rides only, or handle cash logic separately)
-          if (ride.paymentMethod === 'wallet') {
-            driver.walletBalance += ride.fare;
-            await driver.save({ session });
-          }
-
           // Create transactions
-          await Transaction.create([
+          const transactions = [
             {
               userId: rider._id,
               amount: ride.fare,
               type: 'debit',
               category: 'ride_fare',
               description: `Ride to ${ride.dropoff.address}`,
-              rideId: ride._id
+              rideId: ride._id,
+              paymentMethod: ride.paymentMethod
             },
             {
               userId: driver._id,
-              amount: ride.fare,
-              type: 'credit',
+              amount: ride.paymentMethod === 'wallet' ? driverEarnings : -platformCommission,
+              type: ride.paymentMethod === 'wallet' ? 'credit' : 'debit',
               category: 'ride_fare',
-              description: `Ride from ${ride.pickup.address}`,
-              rideId: ride._id
+              description: ride.paymentMethod === 'wallet' ? `Earnings from ride` : `Commission deduction for cash ride`,
+              rideId: ride._id,
+              paymentMethod: ride.paymentMethod
             }
-          ], { session, ordered: true });
+          ];
+          
+          await Transaction.create(transactions, { session });
         });
         session.endSession();
       } catch (transactionError) {
@@ -469,93 +515,110 @@ router.get('/history', auth, async (req, res) => {
 // @desc    Estimate fare based on distance and time
 // @access  Private
 router.post('/estimate-fare', auth, async (req, res) => {
-  const { distance, duration, vehicleType } = req.body;
+  const { distance, duration, pickupCoords } = req.body;
   
   try {
-    const distanceKm = distance / 1000;
-    const durationMin = duration / 60;
-
-    // Uber-like Fare Formula: Base + (Distance * Rate) + (Time * Rate)
-    const rates = {
-      bike: { base: 20, perKm: 8, perMin: 1, minFare: 30 },
-      auto: { base: 30, perKm: 12, perMin: 1.5, minFare: 50 },
-      cab: { base: 50, perKm: 18, perMin: 2, minFare: 80 }
-    };
-
-    const rate = rates[vehicleType] || rates.bike;
-    let fare = rate.base + (distanceKm * rate.perKm) + (durationMin * rate.perMin);
-    
-    // Apply minimum fare
-    fare = Math.max(fare, rate.minFare);
-
-    // Intelligent Pricing Factors (Mocked for demonstration)
-    const hour = new Date().getHours();
-    let surgeMultiplier = 1.0;
-    
-    // 1. Time-based Surge (Peak Hours)
-    if ((hour >= 8 && hour <= 10) || (hour >= 18 && hour <= 22)) {
-      surgeMultiplier += 0.2;
+    if (distance === undefined || duration === undefined || distance === null || duration === null) {
+      return res.status(400).json({ message: 'Distance and duration are required' });
     }
 
-    // 2. Traffic Density (Mocked based on random factor)
-    const trafficFactor = 1 + (Math.random() * 0.3); // 1.0x to 1.3x
-    surgeMultiplier *= trafficFactor;
+    const distanceKm = Number(distance) / 1000;
+    const durationMin = Number(duration) / 60;
 
-    // 3. Weather Factor (Mocked)
-    const weatherConditions = ['clear', 'rainy', 'stormy'];
-    const currentWeather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
-    if (currentWeather === 'rainy') surgeMultiplier += 0.1;
-    if (currentWeather === 'stormy') surgeMultiplier += 0.2;
+    if (isNaN(distanceKm) || isNaN(durationMin)) {
+      return res.status(400).json({ message: 'Invalid distance or duration' });
+    }
 
-    // 4. Demand Factor (Mocked)
-    const demandFactor = 1 + (Math.random() * 0.2); // 1.0x to 1.2x
-    surgeMultiplier *= demandFactor;
+    // Rates for different tiers
+    const tiers = {
+      go: { base: 40, perKm: 12, perMin: 1.5, minFare: 60, name: 'RideDeck Go' },
+      premier: { base: 60, perKm: 18, perMin: 2.5, minFare: 100, name: 'RideDeck Premier' },
+      xl: { base: 90, perKm: 25, perMin: 3.5, minFare: 150, name: 'RideDeck XL' }
+    };
 
-    // Brand Collaboration: Sponsored Rides
-    const Brand = require('../models/Brand');
-    const brands = await Brand.find();
-    let discount = 0;
-    let sponsoredBy = null;
+    // Calculate Surge Multiplier
+    let surgeMultiplier = 1.0;
+    let activeDrivers = 1; // Avoid division by zero
+    let activeRequests = 0;
 
-    if (req.body.pickupCoords || req.body.dropoffCoords) {
-      const pLat = req.body.pickupCoords?.lat;
-      const pLng = req.body.pickupCoords?.lng;
-      const dLat = req.body.dropoffCoords?.lat;
-      const dLng = req.body.dropoffCoords?.lng;
-
-      for (const brand of brands) {
-        for (const loc of brand.locations) {
-          const distToPickup = pLat ? Math.sqrt(Math.pow(loc.lat - pLat, 2) + Math.pow(loc.lng - pLng, 2)) : 1;
-          const distToDropoff = dLat ? Math.sqrt(Math.pow(loc.lat - dLat, 2) + Math.pow(loc.lng - dLng, 2)) : 1;
-          
-          if (distToPickup < 0.005 || distToDropoff < 0.005) {
-            discount = 20;
-            sponsoredBy = brand.name;
-            break;
+    if (pickupCoords && pickupCoords.lat && pickupCoords.lng) {
+      try {
+        // 1. Count Online Drivers in 5km radius
+        activeDrivers = await User.countDocuments({
+          role: 'driver',
+          isOnline: true,
+          subscriptionStatus: 'active',
+          currentLocation: {
+            $near: {
+              $geometry: {
+                type: 'Point',
+                coordinates: [pickupCoords.lng, pickupCoords.lat]
+              },
+              $maxDistance: 5000
+            }
           }
-        }
-        if (discount > 0) break;
+        });
+
+        // 2. Count Active Requests (Searching) in 5km radius
+        // Note: We need a 2dsphere index on 'pickup' in Ride model for this to work efficiently
+        activeRequests = await Ride.countDocuments({
+          status: 'searching',
+          pickup: {
+            $near: {
+              $geometry: {
+                type: 'Point',
+                coordinates: [pickupCoords.lng, pickupCoords.lat]
+              },
+              $maxDistance: 5000
+            }
+          }
+        });
+
+        // 3. Calculate Ratio
+        const ratio = activeRequests / (activeDrivers || 1);
+        
+        if (ratio > 3.0) surgeMultiplier = 2.0;
+        else if (ratio > 2.0) surgeMultiplier = 1.5;
+        else if (ratio > 1.5) surgeMultiplier = 1.2;
+      } catch (surgeError) {
+        console.error('Surge calculation error (using default 1.0):', surgeError.message);
+        // Default to 1.0 is already set
       }
     }
 
-    let finalFare = (fare * surgeMultiplier) - discount;
-    finalFare = Math.max(finalFare, rate.minFare);
+    // Time of Day Surge (Peak Hours)
+    const hour = new Date().getHours();
+    if ((hour >= 8 && hour <= 10) || (hour >= 18 && hour <= 22)) {
+      surgeMultiplier = Math.max(surgeMultiplier, 1.2); // Take the higher of demand surge or time surge
+    }
+
+    const estimates = {};
+    const breakup = {}; // Detailed breakup for the 'go' tier (default)
+
+    // Calculate for all tiers
+    for (const [key, rate] of Object.entries(tiers)) {
+      let fare = rate.base + (distanceKm * rate.perKm) + (durationMin * rate.perMin);
+      fare = Math.max(fare, rate.minFare);
+      
+      const finalFare = Math.round(fare * surgeMultiplier);
+      estimates[key] = finalFare;
+
+      if (key === 'go') {
+        breakup.base = rate.base;
+        breakup.distanceFare = Math.round(distanceKm * rate.perKm);
+        breakup.timeFare = Math.round(durationMin * rate.perMin);
+        breakup.surge = surgeMultiplier;
+        breakup.surgeAmount = Math.round(fare * (surgeMultiplier - 1));
+      }
+    }
 
     res.json({ 
-      fare: Math.round(finalFare),
-      breakup: {
-        base: rate.base,
-        distanceFare: Math.round(distanceKm * rate.perKm),
-        timeFare: Math.round(durationMin * rate.perMin),
-        surge: surgeMultiplier,
-        surgeAmount: Math.round(fare * (surgeMultiplier - 1)),
-        factors: {
-          traffic: `${((trafficFactor - 1) * 100).toFixed(0)}% extra`,
-          weather: currentWeather,
-          demand: `${((demandFactor - 1) * 100).toFixed(0)}% high`
-        },
-        discount: discount,
-        sponsoredBy: sponsoredBy
+      estimates,
+      breakup,
+      meta: {
+        activeDrivers,
+        activeRequests,
+        surgeMultiplier
       }
     });
   } catch (error) {
@@ -580,10 +643,93 @@ router.post('/sos', auth, async (req, res) => {
         location: ride.pickup // In a real app, this would be current live location
       });
       // Also emit to specific admin room if you have one, e.g., io.to('admin-room').emit(...)
-      console.log(`SOS Alert sent for ride ${ride._id}`);
+
     }
 
     res.json({ message: 'SOS alert sent to authorities and admin' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// @route   POST /api/rides/:id/rate
+// @desc    Rate a ride (for both rider and driver)
+// @access  Private
+router.post('/:id/rate', auth, async (req, res) => {
+  const { rating, review } = req.body;
+  const rideId = req.params.id;
+  const userId = req.user._id;
+
+  try {
+    const ride = await Ride.findById(rideId);
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+    // Determine if user is rider or driver
+    const isRider = ride.riderId.toString() === userId.toString();
+    const isDriver = ride.driverId && ride.driverId.toString() === userId.toString();
+
+    if (!isRider && !isDriver) {
+      return res.status(403).json({ message: 'Not authorized to rate this ride' });
+    }
+
+    // Update Ride
+    if (isRider) {
+      ride.driverRating = rating;
+      ride.driverReview = review;
+    } else {
+      ride.riderRating = rating;
+      ride.riderReview = review;
+    }
+    await ride.save();
+
+    // Update User Rating (The person BEING rated)
+    const targetUserId = isRider ? ride.driverId : ride.riderId;
+    if (targetUserId) {
+      const targetUser = await User.findById(targetUserId);
+      if (targetUser) {
+        // Calculate new average
+        const currentTotal = targetUser.rating * targetUser.totalRatings;
+        targetUser.totalRatings += 1;
+        targetUser.rating = (currentTotal + rating) / targetUser.totalRatings;
+        await targetUser.save();
+      }
+    }
+
+    res.json({ message: 'Rating submitted successfully', ride });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+// @route   GET /api/rides/history
+// @desc    Get ride history for current user
+// @access  Private
+router.get('/history', auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const query = {
+      $or: [{ riderId: req.user._id }, { driverId: req.user._id }],
+      status: { $in: ['completed', 'cancelled'] }
+    };
+
+    const rides = await Ride.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('riderId', 'name rating')
+      .populate('driverId', 'name rating vehicleNumber vehicleType');
+
+    const total = await Ride.countDocuments(query);
+
+    res.json({
+      rides,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalRides: total
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }

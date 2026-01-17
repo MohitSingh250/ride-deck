@@ -23,6 +23,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isBanned: {
+    type: Boolean,
+    default: false,
+  },
   rating: {
     type: Number,
     default: 5,
@@ -115,6 +119,13 @@ const userSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  savedPlaces: [{
+    name: String,
+    address: String,
+    lat: Number,
+    lng: Number,
+    icon: { type: String, default: 'map-pin' } // home, work, gym, etc.
+  }],
 }, { timestamps: true });
 
 userSchema.index({ currentLocation: '2dsphere' });

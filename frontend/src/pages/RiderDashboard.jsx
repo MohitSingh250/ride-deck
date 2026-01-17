@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import Skeleton from '../components/Skeleton';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import InRideOffer from '../components/InRideOffer';
 
 const RiderDashboard = () => {
   const { user } = useAuth();
@@ -35,6 +36,129 @@ const RiderDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchTimeout, setSearchTimeout] = useState(null);
   const [showCancelWarning, setShowCancelWarning] = useState(false);
+  const [estimates, setEstimates] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState('go');
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState('');
+  const [showSavedPlaces, setShowSavedPlaces] = useState(false);
+  const [savedPlaces, setSavedPlaces] = useState([]);
+  const [bookingForSelf, setBookingForSelf] = useState(true);
+  const [riderName, setRiderName] = useState('');
+  const [activeCampaign, setActiveCampaign] = useState(null);
+  const [hasSeenOffer, setHasSeenOffer] = useState(false);
+
+  const [activeCampaigns, setActiveCampaigns] = useState([]);
+  const [showSimulateOffer, setShowSimulateOffer] = useState(false);
+
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/brands/all-active`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setActiveCampaigns(data);
+        }
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
+      }
+    };
+    if (user) fetchCampaigns();
+  }, [user]);
+
+  const handleSimulateOffer = () => {
+    if (activeCampaigns.length > 0) {
+      setActiveCampaign(activeCampaigns[0]);
+      setHasSeenOffer(true);
+    } else {
+      toast.error('No active campaigns to simulate');
+    }
+  };
+
+  useEffect(() => {
+    if (currentRide?.status === 'completed' && !currentRide.riderRating) {
+      setShowRatingModal(true);
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+  }, [currentRide?.status]);
+
+  // Poll for nearby brands during ride
+  useEffect(() => {
+    let interval;
+    if (rideStatus === 'in-ride' && !hasSeenOffer && driver?.location) {
+      interval = setInterval(async () => {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/brands/nearby?lat=${driver.location.lat}&lng=${driver.location.lng}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+          });
+          if (response.ok) {
+            const campaign = await response.json();
+            if (campaign) {
+              setActiveCampaign(campaign);
+              setHasSeenOffer(true); // Only show one offer per ride
+              clearInterval(interval);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching brands:', error);
+        }
+      }, 30000); // Check every 30 seconds
+    }
+    return () => clearInterval(interval);
+  }, [rideStatus, hasSeenOffer, driver?.location, user.token]);
+
+  const handleSaveCoupon = async (campaignId) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/brands/save-coupon`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ campaignId })
+      });
+      if (response.ok) {
+        toast.success('Coupon saved to Wallet!');
+        setActiveCampaign(null);
+      } else {
+        const data = await response.json();
+        toast.error(data.message || 'Failed to save coupon');
+      }
+    } catch (error) {
+      toast.error('Error saving coupon');
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/rides/${currentRide._id}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ rating, review })
+      });
+      if (response.ok) {
+        toast.success('Rating submitted!');
+        setShowRatingModal(false);
+        setCurrentRide(null); // Clear ride after rating
+        setRating(0);
+        setReview('');
+      } else {
+        toast.error('Failed to submit rating');
+      }
+    } catch (error) {
+      toast.error('Error submitting rating');
+    }
+  };
+
 
   const handleCancelRide = async (rideIdOverride) => {
     const idToCancel = rideIdOverride || currentRide?._id;
@@ -113,6 +237,43 @@ const RiderDashboard = () => {
     };
     fetchCurrentRide();
   }, [user.token]);
+
+  useEffect(() => {
+    const fetchSavedPlaces = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/profile`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSavedPlaces(data.savedPlaces || []);
+        }
+      } catch (error) {
+        console.error('Error fetching saved places:', error);
+      }
+    };
+    if (showSavedPlaces) fetchSavedPlaces();
+  }, [showSavedPlaces, user.token]);
+
+  const handleAddSavedPlace = async (name, address, lat, lng) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/saved-places`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ name, address, lat, lng })
+      });
+      if (response.ok) {
+        const updatedPlaces = await response.json();
+        setSavedPlaces(updatedPlaces);
+        toast.success('Place saved!');
+      }
+    } catch (error) {
+      toast.error('Failed to save place');
+    }
+  };
 
   useEffect(() => {
     if (!socket) return;
@@ -203,15 +364,26 @@ const RiderDashboard = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`
         },
-        body: JSON.stringify({ distance, duration, vehicleType: 'cab' })
+        body: JSON.stringify({ 
+          distance, 
+          duration,
+          pickupCoords: pickupCoords ? { lat: pickupCoords[0], lng: pickupCoords[1] } : null
+        })
       });
       const data = await response.json();
       if (response.ok) {
-        setFare(data.fare);
+        setEstimates(data.estimates);
+        setFare(data.estimates.go); // Default to Go
         setFareBreakup(data.breakup);
+        setSelectedVehicle('go');
+      } else {
+        toast.error(data.message || 'Failed to estimate fare');
+        setEstimates(null);
       }
     } catch (error) {
       console.error('Error estimating fare:', error);
+      toast.error('Could not calculate fare. Please try again.');
+      setEstimates(null);
     }
   };
 
@@ -224,6 +396,11 @@ const RiderDashboard = () => {
   const handleRequestRide = async () => {
     if (!pickupCoords || !dropoffCoords) {
       toast.error('Please select pickup and dropoff locations');
+      return;
+    }
+
+    if (!estimates) {
+      toast.error('Please wait for fare estimates');
       return;
     }
     
@@ -248,8 +425,8 @@ const RiderDashboard = () => {
         body: JSON.stringify({
           pickup,
           dropoff,
-          vehicleType: 'cab',
-          fare,
+          vehicleType: selectedVehicle,
+          fare: estimates[selectedVehicle],
           pickupCoords: { lat: pickupCoords[0], lng: pickupCoords[1] },
           dropoffCoords: { lat: dropoffCoords[0], lng: dropoffCoords[1] },
           paymentMethod
@@ -291,6 +468,50 @@ const RiderDashboard = () => {
     }
   };
 
+  const handleScheduleRide = async () => {
+    if (!pickup || !dropoff || !reserveDate || !reserveTime) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    try {
+      const scheduledTime = new Date(`${reserveDate}T${reserveTime}`);
+      if (scheduledTime < new Date()) {
+        toast.error('Please select a future time');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/rides/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({
+          pickup,
+          dropoff,
+          vehicleType: 'go', // Default for scheduled
+          fare: 0, // Will be calculated at time of ride or estimated now
+          pickupCoords: { lat: pickupCoords?.[0] || 0, lng: pickupCoords?.[1] || 0 },
+          dropoffCoords: { lat: dropoffCoords?.[0] || 0, lng: dropoffCoords?.[1] || 0 },
+          scheduledTime: scheduledTime.toISOString()
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Ride scheduled successfully!');
+        setShowReserve(false);
+        setReserveDate('');
+        setReserveTime('');
+      } else {
+        const data = await response.json();
+        toast.error(data.message || 'Failed to schedule ride');
+      }
+    } catch (error) {
+      toast.error('Error scheduling ride');
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col md:flex-row bg-white">
@@ -322,9 +543,9 @@ const RiderDashboard = () => {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col lg:flex-row bg-white overflow-hidden pt-16">
+    <div className="h-screen w-full flex flex-col lg:flex-row bg-white overflow-hidden pt-16 relative">
       {/* Left Sidebar: Booking Flow */}
-      <div className="w-full lg:w-[450px] h-full bg-white border-r border-zinc-100 flex flex-col z-20 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 h-[45vh] lg:h-full lg:w-[450px] lg:relative lg:bottom-auto bg-white border-t lg:border-t-0 lg:border-r border-zinc-100 flex flex-col z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-xl rounded-t-3xl lg:rounded-none">
         <div className="p-6 flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
             {!showReserve ? (
@@ -341,11 +562,27 @@ const RiderDashboard = () => {
                     <button className="uber-btn-white px-3 py-2 text-sm flex items-center gap-2">
                       <Clock className="h-4 w-4" /> Pickup now <ChevronDown className="h-4 w-4" />
                     </button>
-                    <button className="uber-btn-white px-3 py-2 text-sm flex items-center gap-2">
-                      <User className="h-4 w-4" /> For me <ChevronDown className="h-4 w-4" />
+                    <button 
+                      onClick={() => setBookingForSelf(!bookingForSelf)}
+                      className={`uber-btn-white px-3 py-2 text-sm flex items-center gap-2 ${!bookingForSelf ? 'bg-black text-white' : ''}`}
+                    >
+                      <User className="h-4 w-4" /> {bookingForSelf ? 'For me' : 'For someone'} <ChevronDown className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
+
+                {!bookingForSelf && (
+                  <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 mb-4">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Rider Name</label>
+                    <input 
+                      type="text" 
+                      value={riderName}
+                      onChange={(e) => setRiderName(e.target.value)}
+                      placeholder="Enter rider's name"
+                      className="w-full p-2 bg-white rounded-lg border border-zinc-200 outline-none focus:border-black"
+                    />
+                  </div>
+                )}
 
                 <div className="relative space-y-2">
                   {/* Vertical Line */}
@@ -403,7 +640,10 @@ const RiderDashboard = () => {
 
                 {/* Quick Shortcuts */}
                 <div className="grid grid-cols-2 gap-4 mt-8">
-                  <button className="flex items-center gap-3 p-4 bg-zinc-50 rounded-xl hover:bg-zinc-100 transition-all text-left">
+                  <button 
+                    onClick={() => setShowSavedPlaces(true)}
+                    className="flex items-center gap-3 p-4 bg-zinc-50 rounded-xl hover:bg-zinc-100 transition-all text-left"
+                  >
                     <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
                       <Star className="h-5 w-5 text-black" />
                     </div>
@@ -432,11 +672,20 @@ const RiderDashboard = () => {
                     <h3 className="font-bold text-lg">Choose a ride</h3>
                     <div className="space-y-2">
                       {[
-                        { name: 'RideDeck Go', price: '₹245', time: '3 min', icon: Car },
-                        { name: 'RideDeck Premier', price: '₹380', time: '5 min', icon: Shield },
-                        { name: 'RideDeck XL', price: '₹520', time: '8 min', icon: User },
+                        { id: 'go', name: 'RideDeck Go', time: '3 min', icon: Car },
+                        { id: 'premier', name: 'RideDeck Premier', time: '5 min', icon: Shield },
+                        { id: 'xl', name: 'RideDeck XL', time: '8 min', icon: User },
                       ].map((type, i) => (
-                        <button key={i} className="w-full p-4 flex items-center justify-between rounded-xl border-2 border-transparent hover:border-black transition-all group bg-zinc-50">
+                        <button 
+                          key={type.id} 
+                          onClick={() => {
+                            if (estimates) {
+                              setSelectedVehicle(type.id);
+                              setFare(estimates[type.id]);
+                            }
+                          }}
+                          className={`w-full p-4 flex items-center justify-between rounded-xl border-2 transition-all group ${selectedVehicle === type.id ? 'border-black bg-zinc-50' : 'border-transparent hover:border-zinc-200'}`}
+                        >
                           <div className="flex items-center gap-4">
                             <type.icon className="h-8 w-8 text-black" />
                             <div className="text-left">
@@ -444,9 +693,9 @@ const RiderDashboard = () => {
                               <p className="text-xs text-zinc-500">{type.time} away</p>
                             </div>
                           </div>
-                          <p className="font-bold text-lg flex items-center gap-2">
-                            {type.price}
-                            {fareBreakup && type.name === 'RideDeck Go' && (
+                          <div className="font-bold text-lg flex items-center gap-2">
+                            {estimates ? `₹${estimates[type.id]}` : '--'}
+                            {fareBreakup && type.id === 'go' && (
                               <div className="group relative">
                                 <Info className="h-4 w-4 text-zinc-400 cursor-pointer" />
                                 <div className="absolute bottom-full right-0 mb-2 w-64 bg-white p-4 rounded-xl shadow-xl border border-zinc-100 hidden group-hover:block z-50">
@@ -484,7 +733,7 @@ const RiderDashboard = () => {
                                 </div>
                               </div>
                             )}
-                          </p>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -505,8 +754,12 @@ const RiderDashboard = () => {
                         </button>
                       </div>
                     </div>
-                    <button onClick={handleRequestRide} className="uber-btn-black w-full py-4 text-lg mt-4">
-                      Request RideDeck Go
+                    <button 
+                      onClick={handleRequestRide} 
+                      disabled={!estimates || loading}
+                      className={`w-full py-4 text-lg mt-4 ${!estimates || loading ? 'bg-zinc-300 cursor-not-allowed text-zinc-500' : 'uber-btn-black'}`}
+                    >
+                      {loading ? 'Calculating...' : 'Request RideDeck Go'}
                     </button>
                   </div>
                 )}
@@ -577,7 +830,10 @@ const RiderDashboard = () => {
                   </div>
                 </div>
 
-                <button className="uber-btn-black w-full py-4 text-lg mt-8">
+                <button 
+                  onClick={handleScheduleRide}
+                  className="uber-btn-black w-full py-4 text-lg mt-8"
+                >
                   Reserve a ride
                 </button>
               </motion.div>
@@ -597,21 +853,70 @@ const RiderDashboard = () => {
                 <p className="text-xs text-zinc-500">**** 1234</p>
               </div>
             </div>
-            <button className="text-sm font-bold text-black hover:underline">Change</button>
+            <div className="flex gap-4">
+              <button 
+                onClick={handleSimulateOffer} 
+                className="text-[10px] font-bold text-indigo-500 bg-indigo-50/50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-all border border-indigo-100 flex items-center gap-1"
+              >
+                <Gift className="h-3 w-3" /> Simulate Offer
+              </button>
+              <button className="text-sm font-bold text-black hover:underline">Change</button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Saved Places Modal */}
+      <Modal isOpen={showSavedPlaces} onClose={() => setShowSavedPlaces(false)} title="Saved Places">
+        <div className="p-4 space-y-4">
+          {savedPlaces.length === 0 ? (
+            <p className="text-zinc-500 text-center py-8">No saved places yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {savedPlaces.map((place, i) => (
+                <button 
+                  key={i}
+                  onClick={() => {
+                    handleSelectLocation({ display_name: place.address, lat: place.lat, lon: place.lng });
+                    setShowSavedPlaces(false);
+                  }}
+                  className="w-full p-3 flex items-center gap-3 hover:bg-zinc-50 rounded-xl transition-all text-left"
+                >
+                  <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-black" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-black">{place.name}</p>
+                    <p className="text-xs text-zinc-500 line-clamp-1">{place.address}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="pt-4 border-t border-zinc-100">
+            <p className="text-xs text-zinc-400 text-center">To add a place, search for it and click the star icon (coming soon).</p>
+          </div>
+        </div>
+      </Modal>
 
       {/* Right Side: Map */}
       <div className="flex-1 relative h-full">
         <Map 
           pickup={pickupCoords} 
           dropoff={dropoffCoords} 
-          markers={driver?.location ? [{
-            position: [driver.location.lat, driver.location.lng],
-            icon: 'car',
-            popup: 'Your Driver'
-          }] : []}
+          markers={[
+            ...(driver?.location ? [{
+              position: [driver.location.lat, driver.location.lng],
+              icon: 'car',
+              popup: 'Your Driver'
+            }] : []),
+            ...activeCampaigns.map(c => ({
+              position: c.location.coordinates.slice().reverse(), // GeoJSON is [lng, lat], Leaflet needs [lat, lng]
+              icon: 'brand',
+              logo: c.brandId.logo,
+              popup: c.title
+            }))
+          ]}
           onRouteFound={handleRouteFound}
         />
 
@@ -722,11 +1027,58 @@ const RiderDashboard = () => {
                 <h2 className="text-2xl font-bold text-black">Finding your ride</h2>
                 <p className="text-zinc-500">Connecting you to nearby drivers...</p>
               </div>
-              <button onClick={handleCancelRide} className="uber-btn-white w-full">Cancel</button>
+              <button onClick={() => handleCancelRide()} className="uber-btn-white w-full">Cancel</button>
             </div>
           </div>
         )}
       </div>
+      {/* Rating Modal */}
+      <Modal isOpen={showRatingModal} onClose={() => {}} title="Rate your Driver">
+        <div className="p-6 text-center space-y-6">
+          <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">
+            {currentRide?.driverId?.name?.[0]}
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">{currentRide?.driverId?.name}</h3>
+            <p className="text-zinc-500">How was your ride?</p>
+          </div>
+          
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => setRating(star)}
+                className="transition-transform hover:scale-110"
+              >
+                <Star 
+                  className={`h-8 w-8 ${star <= rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-200'}`} 
+                />
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={review}
+            onChange={(e) => setReview(e.target.value)}
+            placeholder="Write a review (optional)..."
+            className="w-full p-4 bg-zinc-50 rounded-xl border border-zinc-100 outline-none focus:border-black min-h-[100px]"
+          />
+
+          <button
+            onClick={handleSubmitRating}
+            disabled={rating === 0}
+            className="uber-btn-black w-full py-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Submit Rating
+          </button>
+        </div>
+      </Modal>
+
+      <InRideOffer 
+        campaign={activeCampaign}
+        onSave={handleSaveCoupon}
+        onDismiss={() => setActiveCampaign(null)}
+      />
     </div>
   );
 };

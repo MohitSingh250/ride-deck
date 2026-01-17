@@ -16,6 +16,10 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'Token is not valid' });
     }
 
+    if (user.isBanned) {
+      return res.status(403).json({ message: 'Your account has been banned. Please contact support.' });
+    }
+
     req.user = user;
     next();
   } catch (error) {

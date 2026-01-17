@@ -41,10 +41,12 @@ router.post('/subscribe', auth, authorize('driver'), async (req, res) => {
   }
 });
 
+const checkSubscription = require('../middleware/checkSubscription');
+
 // @route   POST /api/driver/status
 // @desc    Toggle driver online/offline status
 // @access  Private
-router.post('/status', auth, authorize('driver'), async (req, res) => {
+router.post('/status', auth, authorize('driver'), checkSubscription, async (req, res) => {
   const { isOnline } = req.body;
   const userId = req.user._id;
 
@@ -199,7 +201,7 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    console.log('KYC Route: Started');
+
     const user = await User.findById(req.user._id);
     
     if (!user) {
@@ -207,8 +209,7 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
         return res.status(404).json({ message: 'User not found' });
     }
     
-    console.log('KYC Route: User found', user._id);
-    console.log('KYC Route: Files received', req.files ? Object.keys(req.files) : 'No files');
+
     
     if (!req.files || Object.keys(req.files).length === 0) {
       return res.status(400).json({ message: 'Please upload all required documents' });
@@ -231,18 +232,15 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
       insurance: getFilePath('insurance')
     };
 
-    console.log('KYC Route: Constructed kycDocuments', kycDocuments);
+
 
     user.kycDocuments = kycDocuments;
     user.kycStatus = 'pending';
     
-    console.log('KYC Route: Saving user...');
     await user.save();
-    console.log('KYC Route: User saved successfully');
     
     res.json({ message: 'KYC documents submitted successfully', kycStatus: user.kycStatus, documents: kycDocuments });
   } catch (error) {
-    console.error('KYC Route Error:', error);
     res.status(500).json({ message: 'Server Error', error: error.message, stack: error.stack });
   }
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, Navigation, Star, Clock, CheckCircle, Shield, Banknote, Power, AlertCircle, Calendar, Zap, Crown, MessageSquare, Send, X, TrendingUp, ShieldCheck, ChevronRight, Phone } from 'lucide-react';
+import { Car, MapPin, Navigation, Star, Clock, CheckCircle, Shield, Banknote, Power, AlertCircle, Calendar, Zap, Crown, MessageSquare, Send, X, TrendingUp, ShieldCheck, ChevronRight, Phone, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -26,6 +26,32 @@ const DriverDashboard = () => {
   const [lastCompletedRide, setLastCompletedRide] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
   const [cancellationModalOpen, setCancellationModalOpen] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState('');
+
+  const handleSubmitRating = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/rides/${lastCompletedRide._id}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ rating, review })
+      });
+      if (response.ok) {
+        toast.success('Rating submitted!');
+        setShowRatingModal(false);
+        setRating(0);
+        setReview('');
+      } else {
+        toast.error('Failed to submit rating');
+      }
+    } catch (error) {
+      toast.error('Error submitting rating');
+    }
+  };
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -93,10 +119,10 @@ const DriverDashboard = () => {
           };
           setCurrentLocation(newLocation);
 
-          // Broadcast location if in an active ride
-          if (currentRide && socket) {
+          // Broadcast location if online
+          if (isOnline && socket) {
             socket.emit('update-location', {
-              rideId: currentRide._id,
+              rideId: currentRide?._id || null,
               location: newLocation,
               driverId: user._id
             });
@@ -233,6 +259,7 @@ const DriverDashboard = () => {
         if (status === 'completed') {
           setLastCompletedRide(data);
           setShowSummary(true);
+          setShowRatingModal(true);
           toast.success('Ride completed!');
         } else {
           // Status update handled by API
@@ -262,6 +289,13 @@ const DriverDashboard = () => {
     } catch (error) {
       toast.error('Failed to send SOS');
     }
+  };
+
+  const handleNavigate = () => {
+    if (!currentRide) return;
+    const dest = currentRide.status === 'accepted' ? currentRide.pickup : currentRide.dropoff;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}`;
+    window.open(url, '_blank');
   };
 
   if (fetchingActiveRide) {
@@ -302,9 +336,9 @@ const DriverDashboard = () => {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col lg:flex-row bg-white overflow-hidden pt-16">
+    <div className="h-screen w-full flex flex-col lg:flex-row bg-white overflow-hidden pt-16 relative">
       {/* Left Sidebar: Status & Stats */}
-      <div className="w-full lg:w-[400px] h-[45%] lg:h-full bg-white border-r border-zinc-100 flex flex-col z-20 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 h-[45vh] lg:h-full lg:w-[400px] lg:relative lg:bottom-auto bg-white border-t lg:border-t-0 lg:border-r border-zinc-100 flex flex-col z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-xl rounded-t-3xl lg:rounded-none">
         <div className="p-6 flex-1 overflow-y-auto space-y-8">
           {/* Status Header */}
           <div className="flex items-center justify-between">
@@ -450,9 +484,18 @@ const DriverDashboard = () => {
                     <span className="px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-full">Active Ride</span>
                     <span className="text-xs text-zinc-400 font-bold">#{currentRide._id.slice(-6)}</span>
                   </div>
-                  <h2 className="text-3xl font-bold text-black">
-                    {currentRide.status === 'accepted' ? 'Pick up Rider' : 'On Trip'}
-                  </h2>
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-3xl font-bold text-black">
+                      {currentRide.status === 'accepted' ? 'Pick up Rider' : 'On Trip'}
+                    </h2>
+                    <button 
+                      onClick={handleNavigate}
+                      className="p-3 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-all"
+                      title="Navigate"
+                    >
+                      <Navigation className="h-6 w-6" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-4xl font-bold text-black">₹{currentRide.fare}</p>
@@ -713,6 +756,48 @@ const DriverDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Rating Modal */}
+      <Modal isOpen={showRatingModal} onClose={() => setShowRatingModal(false)} title="Rate Rider">
+        <div className="p-6 text-center space-y-6">
+          <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">
+            {lastCompletedRide?.riderId?.name?.[0]}
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">{lastCompletedRide?.riderId?.name}</h3>
+            <p className="text-zinc-500">How was the rider?</p>
+          </div>
+          
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => setRating(star)}
+                className="transition-transform hover:scale-110"
+              >
+                <Star 
+                  className={`h-8 w-8 ${star <= rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-200'}`} 
+                />
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={review}
+            onChange={(e) => setReview(e.target.value)}
+            placeholder="Write a review (optional)..."
+            className="w-full p-4 bg-zinc-50 rounded-xl border border-zinc-100 outline-none focus:border-black min-h-[100px]"
+          />
+
+          <button
+            onClick={handleSubmitRating}
+            disabled={rating === 0}
+            className="uber-btn-black w-full py-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Submit Rating
+          </button>
+        </div>
+      </Modal>
+
     </div>
   );
 };

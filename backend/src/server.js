@@ -95,8 +95,12 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Broadcast to the specific rider and all admins
-    io.to(rideId).emit('location-update', { location, driverId });
+    // Broadcast to the specific rider if in a ride
+    if (rideId) {
+      io.to(rideId).emit('location-update', { location, driverId });
+    }
+    
+    // Always broadcast to admins
     io.to('admins').emit('admin-location-update', { rideId, location, driverId });
   });
 
@@ -169,6 +173,7 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/rides', rideRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/brands', brandRoutes);
+app.use('/api/users', userRoutes); // Added this line based on the instruction's implied intent
 
 app.get('/', (req, res) => {
   res.send('Ride Deck API is running...');

@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
     setUser(prev => {
       const newUser = { ...prev, ...updatedData };
       localStorage.setItem('user', JSON.stringify(newUser));
-      console.log('AuthContext: User updated', newUser);
+
       return newUser;
     });
   };

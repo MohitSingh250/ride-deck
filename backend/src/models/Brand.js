@@ -4,39 +4,25 @@ const brandSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    trim: true
   },
   logo: {
     type: String,
-    required: true,
-  },
-  locations: [{
-    address: String,
-    lat: {
-      type: Number,
-      required: true,
-    },
-    lng: {
-      type: Number,
-      required: true,
-    }
-  }],
-  offerText: {
-    type: String,
-    required: true,
+    required: true
   },
   category: {
     type: String,
-    enum: ['food', 'shopping', 'entertainment', 'other'],
-    default: 'other',
-  },
-  discountCode: {
-    type: String,
     required: true,
+    enum: ['Food & Beverage', 'Retail', 'Essentials', 'Entertainment', 'Other']
   },
-  isActive: {
-    type: Boolean,
-    default: true,
+  description: {
+    type: String,
+    trim: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
-}, { timestamps: true });
+});
 
 module.exports = mongoose.model('Brand', brandSchema);

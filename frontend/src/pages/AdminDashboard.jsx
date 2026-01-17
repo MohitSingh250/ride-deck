@@ -97,7 +97,7 @@ const AdminDashboard = () => {
     socket.on('admin-location-update', ({ rideId, location, driverId }) => {
       setLiveLocations(prev => ({
         ...prev,
-        [rideId]: location
+        [driverId]: { ...location, rideId } // Key by driverId instead of rideId
       }));
     });
 
@@ -484,8 +484,32 @@ const AdminDashboard = () => {
                             Verify
                           </button>
                         )}
-                        <button className="p-2 hover:bg-slate-100 rounded-lg transition-all">
-                          <MoreVertical className="h-5 w-5 text-slate-400" />
+                        <button 
+                          onClick={async () => {
+                            if (!window.confirm(`Are you sure you want to ${driver.isBanned ? 'unban' : 'ban'} this driver?`)) return;
+                            try {
+                              const res = await fetch(`${API_URL}/api/admin/users/${driver._id}/ban`, {
+                                method: 'POST',
+                                headers: { 
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${user.token}` 
+                                },
+                                body: JSON.stringify({ isBanned: !driver.isBanned })
+                              });
+                              if (res.ok) {
+                                toast.success(`Driver ${driver.isBanned ? 'unbanned' : 'banned'} successfully`);
+                                fetchData();
+                              } else {
+                                toast.error('Action failed');
+                              }
+                            } catch (err) {
+                              toast.error('Action failed');
+                            }
+                          }}
+                          className={`p-2 rounded-lg transition-all ${driver.isBanned ? 'bg-rose-100 text-rose-600' : 'hover:bg-slate-100 text-slate-400'}`}
+                          title={driver.isBanned ? "Unban Driver" : "Ban Driver"}
+                        >
+                          <AlertCircle className="h-5 w-5" />
                         </button>
                       </td>
                     </tr>
@@ -563,7 +587,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-2 text-xs font-bold text-slate-400">
                     <div className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></div>
-                    {activeRides.length} Active Rides
+                    {allDrivers.filter(d => d.isOnline).length} Online Drivers
                   </span>
                 </div>
               </div>
@@ -572,11 +596,20 @@ const AdminDashboard = () => {
                 <Map 
                   center={[28.6139, 77.2090]} 
                   zoom={12}
-                  markers={activeRides.map(ride => ({
-                    position: liveLocations[ride._id] ? [liveLocations[ride._id].lat, liveLocations[ride._id].lng] : [ride.pickup.lat, ride.pickup.lng],
-                    popup: `Ride #${ride._id.slice(-6)} - ${ride.riderId?.name}`,
-                    icon: 'car'
-                  }))}
+                  markers={allDrivers.filter(d => d.isOnline || liveLocations[d._id]).map(driver => {
+                    const liveLoc = liveLocations[driver._id];
+                    // Use live location if available, else fallback to DB location
+                    const lat = liveLoc?.lat || driver.currentLocation?.coordinates?.[1];
+                    const lng = liveLoc?.lng || driver.currentLocation?.coordinates?.[0];
+                    
+                    if (!lat || !lng) return null;
+
+                    return {
+                      position: [lat, lng],
+                      popup: `${driver.name} (${driver.vehicleNumber}) - ${liveLoc?.rideId ? 'On Ride' : 'Idle'}`,
+                      icon: 'car'
+                    };
+                  }).filter(Boolean)}
                 />
               </div>
             </div>
