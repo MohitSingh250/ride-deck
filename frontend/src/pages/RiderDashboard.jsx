@@ -829,18 +829,22 @@ const RiderDashboard = () => {
           </AnimatePresence>
         </div>
 
+
         {/* Bottom Bar: Quick Info */}
         <div className="p-6 border-t border-zinc-100 bg-zinc-50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                <CreditCard className="h-5 w-5 text-black" />
+            <button 
+              onClick={() => navigate('/profile')}
+              className="flex items-center gap-3 hover:bg-zinc-100 p-2 -ml-2 rounded-2xl transition-all text-left"
+            >
+              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white font-bold shadow-sm">
+                {user?.name?.[0]}
               </div>
               <div>
-                <p className="font-bold text-sm">Personal</p>
-                <p className="text-xs text-zinc-500">**** 1234</p>
+                <p className="font-bold text-sm text-black">{user?.name}</p>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">View Profile</p>
               </div>
-            </div>
+            </button>
             <div className="flex gap-4">
               <button 
                 onClick={handleSimulateOffer} 

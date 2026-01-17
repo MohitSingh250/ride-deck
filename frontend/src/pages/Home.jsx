@@ -98,8 +98,8 @@ const Home = () => {
               className="rounded-3xl overflow-hidden shadow-2xl"
             >
               <img 
-                src="/Users/mohitsingh/.gemini/antigravity/brain/b8f72ac5-c579-40d6-ae47-11b94aad29c5/uploaded_image_0_1768374329258.png" 
-                alt="Uber Ride Illustration" 
+                src="/images/home_hero.png" 
+                alt="RideDeck Hero" 
                 className="w-full h-auto object-cover"
               />
             </motion.div>
@@ -167,8 +167,8 @@ const Home = () => {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1">
               <img 
-                src="/Users/mohitsingh/.gemini/antigravity/brain/b8f72ac5-c579-40d6-ae47-11b94aad29c5/uploaded_image_1_1768374329258.png" 
-                alt="Uber Reserve" 
+                src="/images/home_reserve.png" 
+                alt="RideDeck Reserve" 
                 className="w-full h-auto rounded-3xl shadow-xl"
               />
             </div>

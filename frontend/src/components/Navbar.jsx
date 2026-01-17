@@ -50,7 +50,10 @@ const Navbar = () => {
             <button className="flex items-center gap-2 text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">
               <Globe className="h-4 w-4" /> EN
             </button>
-            <button className="flex items-center gap-2 text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all">
+            <button 
+              onClick={() => navigate('/help')}
+              className="flex items-center gap-2 text-sm font-medium text-black hover:bg-zinc-100 px-3 py-2 rounded-full transition-all"
+            >
               <HelpCircle className="h-4 w-4" /> Help
             </button>
           </div>

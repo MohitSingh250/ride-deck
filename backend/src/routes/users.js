@@ -32,7 +32,9 @@ router.put('/profile', auth, async (req, res) => {
     if (phone) user.phone = phone;
 
     await user.save();
-    res.json(user);
+    
+    const updatedUser = await User.findById(req.user._id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }

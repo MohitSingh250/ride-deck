@@ -56,8 +56,28 @@ const DriverDashboard = () => {
 
   const [stats, setStats] = useState({ todayEarnings: 0, totalRides: 0, walletBalance: 0 });
   const [earningsHistory, setEarningsHistory] = useState([]);
+  const [recentRides, setRecentRides] = useState([]);
   const lastFetchToken = useRef(null);
   const lastActiveRideToken = useRef(null);
+  const lastActivityToken = useRef(null);
+
+  // Fetch Recent Activity
+  useEffect(() => {
+    const fetchRecentRides = async () => {
+      if (!user?.token || lastActivityToken.current === user.token) return;
+      lastActivityToken.current = user.token;
+      try {
+        const res = await fetch(`${API_URL}/api/rides/history?limit=3`, {
+          headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const data = await res.json();
+        if (res.ok) setRecentRides(data.rides || []);
+      } catch (error) {
+        console.error('Error fetching recent rides:', error);
+      }
+    };
+    fetchRecentRides();
+  }, [user?.token]);
 
   // Sync isOnline with context
   useEffect(() => {
@@ -430,22 +450,56 @@ const DriverDashboard = () => {
               ))}
             </div>
           </div>
+
+          {/* Recent Activity */}
+          <div className="space-y-4 pt-4 border-t border-zinc-100">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-black flex items-center gap-2">
+                <Clock className="h-5 w-5 text-zinc-400" /> Recent Activity
+              </h3>
+              <button onClick={() => navigate('/history')} className="text-xs font-bold text-zinc-400 hover:text-black transition-all">View All</button>
+            </div>
+            <div className="space-y-3">
+              {recentRides.length === 0 ? (
+                <p className="text-xs text-zinc-400 py-2">No recent rides found.</p>
+              ) : (
+                recentRides.map((ride) => (
+                  <div key={ride._id} className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 flex items-center justify-between group hover:border-black transition-all cursor-pointer" onClick={() => navigate('/history')}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                        <MapPin className="h-4 w-4 text-black" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-black line-clamp-1">{ride.dropoff.address}</p>
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase">{new Date(ride.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs font-bold text-black">₹{ride.fare}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Bottom Profile Bar */}
         <div className="p-6 border-t border-zinc-100 bg-zinc-50">
-          <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate('/profile')}
+            className="w-full flex items-center gap-4 hover:bg-zinc-100 p-2 rounded-2xl transition-all text-left"
+          >
             <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white font-bold">
               {user?.name[0]}
             </div>
-            <div>
+            <div className="flex-1">
               <p className="font-bold text-black">{user?.name}</p>
               <div className="flex items-center gap-1">
                 <Star className="h-3 w-3 text-amber-500 fill-amber-400" />
                 <span className="text-xs font-bold">4.9</span>
               </div>
             </div>
-          </div>
+            <ChevronRight className="h-5 w-5 text-zinc-300" />
+          </button>
         </div>
       </div>
 

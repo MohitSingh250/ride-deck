@@ -436,29 +436,36 @@ router.post('/update-status', auth, async (req, res) => {
 
         // Add to driver
         if (ride.paymentMethod === 'wallet') {
-          driver.walletBalance += ride.fare;
+          driver.walletBalance += driverEarnings;
+          await driver.save();
+        } else {
+          driver.walletBalance -= platformCommission;
           await driver.save();
         }
 
         // Create transactions
-        await Transaction.create([
+        const transactions = [
           {
             userId: rider._id,
             amount: ride.fare,
             type: 'debit',
             category: 'ride_fare',
             description: `Ride to ${ride.dropoff.address}`,
-            rideId: ride._id
+            rideId: ride._id,
+            paymentMethod: ride.paymentMethod
           },
           {
             userId: driver._id,
-            amount: ride.fare,
-            type: 'credit',
+            amount: ride.paymentMethod === 'wallet' ? driverEarnings : -platformCommission,
+            type: ride.paymentMethod === 'wallet' ? 'credit' : 'debit',
             category: 'ride_fare',
-            description: `Ride from ${ride.pickup.address}`,
-            rideId: ride._id
+            description: ride.paymentMethod === 'wallet' ? `Earnings from ride` : `Commission deduction for cash ride`,
+            rideId: ride._id,
+            paymentMethod: ride.paymentMethod
           }
-        ]);
+        ];
+        
+        await Transaction.create(transactions);
       }
     }
 
@@ -492,24 +499,7 @@ router.post('/update-status', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/rides/history
-// @desc    Get ride history for the logged in user
-// @access  Private
-router.get('/history', auth, async (req, res) => {
-  try {
-    const rides = await Ride.find({
-      $or: [{ riderId: req.user._id }, { driverId: req.user._id }],
-      status: { $in: ['completed', 'cancelled'] }
-    })
-    .populate('riderId', 'name phone')
-    .populate('driverId', 'name phone vehicleNumber vehicleType')
-    .sort({ createdAt: -1 });
 
-    res.json(rides);
-  } catch (error) {
-    res.status(500).json({ message: 'Server Error', error: error.message });
-  }
-});
 
 // @route   POST /api/rides/estimate-fare
 // @desc    Estimate fare based on distance and time
