@@ -17,7 +17,7 @@ const Referral = () => {
   return (
     <div className="min-h-screen bg-white pt-24 pb-12 px-6 lg:px-12">
       <div className="max-w-4xl mx-auto space-y-12">
-        {/* Hero Section */}
+
         <div className="bg-zinc-900 rounded-[3rem] p-8 md:p-16 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-400 via-zinc-900 to-black" />
@@ -33,7 +33,7 @@ const Referral = () => {
           </div>
         </div>
 
-        {/* Referral Code Section */}
+
         <div className="max-w-md mx-auto space-y-4">
           <p className="text-center text-sm font-bold text-zinc-400 uppercase tracking-widest">Your Referral Code</p>
           <div className="p-2 bg-zinc-50 rounded-2xl border-2 border-dashed border-zinc-200 flex items-center justify-between">
@@ -48,7 +48,7 @@ const Referral = () => {
           </div>
         </div>
 
-        {/* How it Works */}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
           {[
             { icon: Share2, title: 'Share Link', desc: 'Send your unique referral link to friends.' },
@@ -65,7 +65,7 @@ const Referral = () => {
           ))}
         </div>
 
-        {/* Referral Stats */}
+
         <div className="pt-12 border-t border-zinc-100">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-2xl font-bold text-black tracking-tight">Referral History</h3>

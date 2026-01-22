@@ -42,7 +42,7 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-white pt-16">
-      {/* Left Side: Branding/Illustration */}
+
       <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-zinc-900 to-black" />
@@ -66,7 +66,7 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* Right Side: Signup Form */}
+
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16">
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
@@ -78,7 +78,7 @@ const Signup = () => {
             <p className="text-zinc-500 font-medium">Join thousands of riders and drivers</p>
           </div>
 
-          {/* Role Selection */}
+
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => setFormData({ ...formData, role: 'rider' })}
@@ -107,7 +107,7 @@ const Signup = () => {
                   placeholder="John Doe"
                   value={formData.name}
                   onChange={handleChange}
-                  className="uber-input w-full pl-12"
+                  className="uber-input w-full !pl-12"
                   required
                 />
               </div>
@@ -123,7 +123,7 @@ const Signup = () => {
                   placeholder="+91 98765 43210"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="uber-input w-full pl-12"
+                  className="uber-input w-full !pl-12"
                   required
                 />
               </div>
@@ -139,13 +139,13 @@ const Signup = () => {
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
-                  className="uber-input w-full pl-12"
+                  className="uber-input w-full !pl-12"
                   required
                 />
               </div>
             </div>
 
-            {/* Driver Specific Fields */}
+
             <AnimatePresence>
               {formData.role === 'driver' && (
                 <motion.div 
@@ -162,7 +162,7 @@ const Signup = () => {
                         name="vehicleType"
                         value={formData.vehicleType}
                         onChange={handleChange}
-                        className="uber-input w-full pl-12 appearance-none"
+                        className="uber-input w-full !pl-12 appearance-none"
                       >
                         <option value="bike">Bike</option>
                         <option value="auto">Auto</option>
@@ -180,7 +180,7 @@ const Signup = () => {
                         placeholder="DL 1C AB 1234"
                         value={formData.vehicleNumber}
                         onChange={handleChange}
-                        className="uber-input w-full pl-12"
+                        className="uber-input w-full !pl-12"
                         required={formData.role === 'driver'}
                       />
                     </div>

@@ -4,16 +4,19 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
+const rateLimit = require('express-rate-limit');
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your_jwt_secret', {
-    expiresIn: '30d',
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '7d',
   });
 };
 
-const rateLimit = require('express-rate-limit');
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 10, 
   message: 'Too many login attempts, please try again later.'
 });
@@ -64,14 +67,11 @@ router.post(
         token: generateToken(user._id),
       });
     } catch (error) {
-      res.status(500).json({ message: 'Server Error', error: error.message });
+      res.status(500).json({ message: 'Server Error' });
     }
   }
 );
 
-// @route   POST /api/auth/login
-// @desc    Login user
-// @access  Public
 router.post(
   '/login',
   authLimiter,
@@ -108,14 +108,11 @@ router.post(
         token: generateToken(user._id),
       });
     } catch (error) {
-      res.status(500).json({ message: 'Server Error', error: error.message });
+      res.status(500).json({ message: 'Server Error' });
     }
   }
 );
 
-// @route   GET /api/auth/me
-// @desc    Get current logged in user
-// @access  Private
 router.get('/me', require('../middleware/authMiddleware').auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');

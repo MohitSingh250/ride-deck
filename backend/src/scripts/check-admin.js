@@ -35,7 +35,7 @@ async function checkAdmin() {
         console.log('No users found in database.');
       }
     } else {
-      // Also update password for existing admin if requested
+
       const mohit = await User.findOne({ phone: '09756812554' });
       if (mohit) {
         const bcrypt = require('bcryptjs');

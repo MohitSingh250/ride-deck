@@ -15,7 +15,6 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Permissive CORS for debugging
 const corsOptions = {
   origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
   credentials: true,
@@ -26,20 +25,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Increased for development/debugging
+  windowMs: 15 * 60 * 1000, 
+  max: 500, 
   message: { message: 'Too many requests from this IP, please try again later.' }
 });
 
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // Increased for development
+  windowMs: 60 * 60 * 1000, 
+  max: 50, 
   message: { message: 'Too many login attempts, please try again later.' }
 });
 
-// Apply global limiter to all requests
 app.use(limiter);
 
 const io = new Server(server, {
@@ -51,15 +48,12 @@ const io = new Server(server, {
   transports: ['polling', 'websocket']
 });
 
-// Middleware
 app.use(morgan('dev'));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Database Connection
 connectDB(process.env.MONGO_URI);
 
-// Socket.io Logic
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
@@ -81,7 +75,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('update-location', async ({ rideId, location, driverId }) => {
-    // Update driver's location in DB
     if (driverId) {
       try {
         await User.findByIdAndUpdate(driverId, {
@@ -95,12 +88,10 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Broadcast to the specific rider if in a ride
     if (rideId) {
       io.to(rideId).emit('location-update', { location, driverId });
     }
     
-    // Always broadcast to admins
     io.to('admins').emit('admin-location-update', { rideId, location, driverId });
   });
 
@@ -119,7 +110,6 @@ io.on('connection', (socket) => {
     io.to(riderId).emit('ride-completed', ride);
   });
 
-  // Chat Logic
   socket.on('send-message', ({ to, message, senderName }) => {
     if (to) {
       io.to(to.toString()).emit('receive-message', {
@@ -132,18 +122,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  // SOS Logic
   socket.on('sos-alert', ({ userId, userName, location, rideId }) => {
     console.error(`🚨 SOS ALERT from ${userName} (ID: ${userId}) on ride ${rideId} at ${JSON.stringify(location)}`);
-    // Notify all admins specifically
     io.to('admins').emit('admin-sos-alert', { userId, userName, location, rideId, timestamp: new Date() });
   });
 
-  // Share Trip Logic
   socket.on('share-trip', ({ rideId, riderName, location, destination }) => {
     console.log(`Trip shared by ${riderName} for ride ${rideId}`);
-    // This could generate a unique link or notify specific contacts
-    // For now, we'll just acknowledge it
   });
 
   socket.on('disconnect', () => {
@@ -151,10 +136,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io accessible to routes
 app.set('io', io);
 
-// Routes
 const authRoutes = require('./routes/auth');
 const driverRoutes = require('./routes/driver');
 const rideRoutes = require('./routes/rides');
@@ -173,13 +156,12 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/rides', rideRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/brands', brandRoutes);
-app.use('/api/users', userRoutes); // Added this line based on the instruction's implied intent
+app.use('/api/users', userRoutes); 
 
 app.get('/', (req, res) => {
   res.send('Ride Deck API is running...');
 });
 
-// Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({

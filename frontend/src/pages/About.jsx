@@ -39,7 +39,7 @@ const About = () => {
 
   return (
     <div className="pt-32 min-h-screen bg-white">
-      {/* Hero Section */}
+
       <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-24">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <motion.div
@@ -79,7 +79,7 @@ const About = () => {
         </div>
       </div>
 
-      {/* Stats Section */}
+
       <div className="bg-zinc-50 py-24 mb-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
@@ -98,7 +98,7 @@ const About = () => {
         </div>
       </div>
 
-      {/* Mission Section */}
+
       <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-32">
         <div className="text-center max-w-3xl mx-auto mb-20">
           <h2 className="text-4xl font-black text-black mb-6">Our Mission</h2>
@@ -120,7 +120,7 @@ const About = () => {
         </div>
       </div>
 
-      {/* Join Us CTA */}
+
       <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-32">
         <div className="bg-black rounded-[4rem] p-12 lg:p-24 text-center text-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">

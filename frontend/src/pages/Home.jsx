@@ -29,10 +29,10 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-white font-sans pt-16">
-      {/* Hero Section - Uber Ride Style */}
+
       <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 lg:py-20">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Side: Booking Form */}
+
           <div className="max-w-xl">
             <div className="flex items-center gap-2 mb-8">
               <span className="text-4xl font-bold text-black tracking-tight">Ride</span>
@@ -52,7 +52,7 @@ const Home = () => {
             </div>
 
             <form onSubmit={handleSeePrices} className="space-y-4 relative">
-              {/* Vertical Line connecting dots */}
+
               <div className="absolute left-[23px] top-[28px] bottom-[28px] w-[1px] bg-zinc-300 z-0" />
               
               <div className="relative z-10">
@@ -89,7 +89,7 @@ const Home = () => {
             </form>
           </div>
 
-          {/* Right Side: Illustration */}
+
           <div className="relative hidden lg:block">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -98,16 +98,16 @@ const Home = () => {
               className="rounded-3xl overflow-hidden shadow-2xl"
             >
               <img 
-                src="/images/home_hero.png" 
-                alt="RideDeck Hero" 
-                className="w-full h-auto object-cover"
+                src="/images/home_hero_gen.png" 
+                alt="RideDeck Premium Car" 
+                className="w-full h-full object-cover"
               />
             </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Suggestions Section */}
+
       <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 border-t border-zinc-100">
         <h2 className="text-3xl font-bold text-black mb-8">Suggestions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -161,15 +161,15 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Reserve Section - Image 1 Style */}
+
       <div className="bg-zinc-50 py-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1">
               <img 
-                src="/images/home_reserve.png" 
+                src="/images/home_reserve_gen.png" 
                 alt="RideDeck Reserve" 
-                className="w-full h-auto rounded-3xl shadow-xl"
+                className="w-full h-auto rounded-3xl shadow-xl object-cover"
               />
             </div>
             <div className="order-1 lg:order-2">
@@ -187,7 +187,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Footer-like CTA */}
+
       <div className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-12 text-center">
           <h2 className="text-4xl font-bold text-black mb-8">

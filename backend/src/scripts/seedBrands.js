@@ -10,12 +10,11 @@ const seedBrands = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('MongoDB Connected');
 
-    // Clear existing data
+
     await Brand.deleteMany({});
     await Campaign.deleteMany({});
     console.log('Cleared existing brands and campaigns');
 
-    // Create Brands
     const brands = await Brand.insertMany([
       {
         name: 'Starbucks',
@@ -39,42 +38,41 @@ const seedBrands = async () => {
 
     console.log(`Seeded ${brands.length} brands`);
 
-    // Create Campaigns (Mock Locations in Delhi/NCR)
     const campaigns = await Campaign.insertMany([
       {
-        brandId: brands[0]._id, // Starbucks
+        brandId: brands[0]._id, 
         title: '20% off Cold Coffee',
         description: 'Beat the heat with our signature brew.',
         code: 'RIDE20',
         location: {
           type: 'Point',
-          coordinates: [77.2090, 28.6139] // Connaught Place, Delhi
+          coordinates: [77.2090, 28.6139]
         },
-        radius: 1000, // 1km
-        activeHours: { start: 0, end: 2359 }, // All day
+        radius: 1000,
+        activeHours: { start: 0, end: 2359 },
         activeDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
       },
       {
-        brandId: brands[1]._id, // McDonalds
+        brandId: brands[1]._id,
         title: 'Free McFlurry',
         description: 'Get a free McFlurry with any meal.',
         code: 'MCFREE',
         location: {
           type: 'Point',
-          coordinates: [77.0878, 28.5039] // Ambience Mall, Gurgaon
+          coordinates: [77.0878, 28.5039]
         },
         radius: 1000,
         activeHours: { start: 1000, end: 2200 },
         activeDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
       },
       {
-        brandId: brands[2]._id, // H&M
+        brandId: brands[2]._id,
         title: 'Flat 15% Off',
         description: 'Show this coupon at checkout.',
         code: 'STYLE15',
         location: {
           type: 'Point',
-          coordinates: [77.2197, 28.5273] // Select Citywalk, Saket
+          coordinates: [77.2197, 28.5273]
         },
         radius: 1000,
         activeHours: { start: 1000, end: 2200 },

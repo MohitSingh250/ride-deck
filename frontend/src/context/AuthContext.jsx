@@ -13,7 +13,6 @@ export const AuthProvider = ({ children }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         
-        // Verify token and get fresh data
         try {
           const response = await fetch(`${API_URL}/api/auth/me`, {
             headers: { 'Authorization': `Bearer ${parsedUser.token}` }
@@ -21,16 +20,14 @@ export const AuthProvider = ({ children }) => {
           
           if (response.ok) {
             const freshUser = await response.json();
-            // Keep the token from localStorage as /me doesn't return it
             const updatedUser = { ...freshUser, token: parsedUser.token };
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
           } else if (response.status === 401) {
-            // Only logout if token is actually invalid/expired
             logout();
           }
         } catch (error) {
-          console.error('Auth check failed:', error);
+          // Silent failure for auth check
         }
       }
       setLoading(false);
@@ -43,7 +40,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (phone, password) => {
     try {
-      // Sanitize phone: remove all non-numeric characters
       const sanitizedPhone = phone.replace(/\D/g, '');
       
       const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -65,7 +61,6 @@ export const AuthProvider = ({ children }) => {
  
   const signup = async (userData) => {
     try {
-      // Sanitize phone: remove all non-numeric characters
       const sanitizedUserData = { 
         ...userData, 
         phone: userData.phone.replace(/\D/g, '') 
@@ -100,7 +95,6 @@ export const AuthProvider = ({ children }) => {
     setUser(prev => {
       const newUser = { ...prev, ...updatedData };
       localStorage.setItem('user', JSON.stringify(newUser));
-
       return newUser;
     });
   };

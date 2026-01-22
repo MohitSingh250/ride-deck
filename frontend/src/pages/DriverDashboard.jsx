@@ -61,7 +61,7 @@ const DriverDashboard = () => {
   const lastActiveRideToken = useRef(null);
   const lastActivityToken = useRef(null);
 
-  // Fetch Recent Activity
+
   useEffect(() => {
     const fetchRecentRides = async () => {
       if (!user?.token || lastActivityToken.current === user.token) return;
@@ -79,19 +79,19 @@ const DriverDashboard = () => {
     fetchRecentRides();
   }, [user?.token]);
 
-  // Sync isOnline with context
+
   useEffect(() => {
     if (user) {
       setIsOnline(!!user.isOnline);
     }
   }, [user?.isOnline]);
 
-  // Initial Data Fetch
+
   useEffect(() => {
     const fetchStats = async () => {
       if (!user?.token || lastFetchToken.current === user.token) return;
       lastFetchToken.current = user.token;
-      console.log('Fetching driver stats...');
+
       
       try {
         const [statsRes, earningsHistoryRes] = await Promise.all([
@@ -113,12 +113,12 @@ const DriverDashboard = () => {
     fetchStats();
   }, [user?.token]);
 
-  // Fetch Active Ride
+
   useEffect(() => {
     const fetchActiveRide = async () => {
       if (!user?.token || lastActiveRideToken.current === user.token) return;
       lastActiveRideToken.current = user.token;
-      console.log('Fetching active ride...');
+
 
       setFetchingActiveRide(true);
       try {
@@ -137,7 +137,7 @@ const DriverDashboard = () => {
     fetchActiveRide();
   }, [user?.token]);
 
-  // Geolocation & Location Broadcasting
+
   useEffect(() => {
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
@@ -148,7 +148,7 @@ const DriverDashboard = () => {
           };
           setCurrentLocation(newLocation);
 
-          // Broadcast location if online
+
           if (isOnline && socket) {
             socket.emit('update-location', {
               rideId: currentRide?._id || null,
@@ -176,7 +176,7 @@ const DriverDashboard = () => {
       if (ride.status === 'cancelled') {
         setCurrentRide(null);
         setOtp('');
-        // Show cancellation modal
+
         setCancellationModalOpen(true);
       }
     });
@@ -246,7 +246,7 @@ const DriverDashboard = () => {
 
   const handleAcceptRide = async (rideId) => {
     setLoading(true);
-    // Optimistic update
+
     setAvailableRides(prev => prev.filter(r => r._id !== rideId));
     
     try {
@@ -264,10 +264,9 @@ const DriverDashboard = () => {
         setCurrentRide(data);
         toast.success('Ride accepted!');
       } else {
-        // Revert if failed
+
         toast.error(data.message);
-        // We might want to re-fetch available rides here if we really wanted to be safe, 
-        // but for now we'll just show the error.
+
       }
     } catch (error) {
       toast.error('Failed to accept ride');
@@ -296,7 +295,7 @@ const DriverDashboard = () => {
           setShowRatingModal(true);
           toast.success('Ride completed!');
         } else {
-          // Status update handled by API
+
         }
       } else {
         toast.error(data.message);
@@ -358,7 +357,7 @@ const DriverDashboard = () => {
       if (data.success) {
         toast.success(data.message);
         setShowSubscriptionModal(false);
-        // Update user context with new subscription status
+
         updateUser(data.user);
       } else {
         toast.error(data.message || 'Subscription failed');

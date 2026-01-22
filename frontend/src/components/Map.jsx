@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet-routing-machine';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 
-// Fix for default marker icon missing in React-Leaflet
+
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -18,7 +18,7 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom Icons
+
 const createBrandIcon = (logoUrl) => L.divIcon({
   html: `<div class="h-10 w-10 bg-white rounded-xl p-1 shadow-lg border-2 border-indigo-500 flex items-center justify-center overflow-hidden">
           <img src="${logoUrl}" class="h-full w-full object-contain" />
@@ -42,7 +42,7 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
   const routingControlRef = useRef(null);
   const onRouteFoundRef = useRef(onRouteFound);
 
-  // Keep callback ref up to date
+
   useEffect(() => {
     onRouteFoundRef.current = onRouteFound;
   }, [onRouteFound]);
@@ -84,7 +84,7 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
       });
 
       control.on('routingerror', (e) => {
-        // Silently handle routing errors to prevent crashes
+
         console.debug('Routing error (expected during rapid updates):', e.error);
       });
 
@@ -98,15 +98,15 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
       if (control) {
         routingControlRef.current = null;
         try {
-          // Clear waypoints to stop pending requests
+
           control.setWaypoints([]);
           
           if (map && map.getContainer()) {
-             // Remove synchronously to avoid race conditions
+
              try {
                map.removeControl(control);
              } catch (e) {
-               // Ignore removal errors
+
              }
           }
         } catch (e) {
@@ -114,12 +114,12 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
         }
       }
     };
-  }, [map]); // Only initialize once
+  }, [map]);
 
   useEffect(() => {
     if (routingControlRef.current && pickup && dropoff) {
       try {
-        // Ensure the control still has a plan and a map
+
         if (routingControlRef.current.getPlan()) {
           routingControlRef.current.setWaypoints([
             L.latLng(pickup[0], pickup[1]),
@@ -135,7 +135,7 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
   return null;
 };
 
-  // Auto-fit bounds
+
   const RecenterMap = ({ pickup, dropoff, markers }) => {
     const map = useMap();
 
@@ -163,18 +163,18 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
   };
 
   const pickupIcon = new L.Icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Green pin
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
     iconSize: [30, 30],
     iconAnchor: [15, 30],
     popupAnchor: [0, -30]
   });
 
   const dropoffIcon = new L.Icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Red pin
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
     iconSize: [30, 30],
     iconAnchor: [15, 30],
     popupAnchor: [0, -30],
-    className: 'hue-rotate-180' // CSS filter to make it red
+    className: 'hue-rotate-180'
   });
 
 const Map = ({ center = [28.6139, 77.2090], zoom = 13, markers = [], pickup, dropoff, onRouteFound, children }) => {

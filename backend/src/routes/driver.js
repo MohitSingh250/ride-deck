@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/authMiddleware');
+const checkSubscription = require('../middleware/checkSubscription');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-// @route   POST /api/driver/subscribe
-// @desc    Purchase/Activate driver subscription (Mock Payment)
-// @access  Private
 router.post('/subscribe', auth, authorize('driver'), async (req, res) => {
-  const { type } = req.body; // type: 'daily', 'weekly', 'monthly'
+  const { type } = req.body;
   const userId = req.user._id;
 
   try {
@@ -41,11 +42,6 @@ router.post('/subscribe', auth, authorize('driver'), async (req, res) => {
   }
 });
 
-const checkSubscription = require('../middleware/checkSubscription');
-
-// @route   POST /api/driver/status
-// @desc    Toggle driver online/offline status
-// @access  Private
 router.post('/status', auth, authorize('driver'), checkSubscription, async (req, res) => {
   const { isOnline } = req.body;
   const userId = req.user._id;
@@ -81,7 +77,6 @@ router.post('/status', auth, authorize('driver'), checkSubscription, async (req,
   }
 });
 
-// Get driver stats
 router.get('/stats', auth, async (req, res) => {
   try {
     const Transaction = require('../models/Transaction');
@@ -112,7 +107,6 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-// Get earnings history (last 7 days)
 router.get('/earnings-history', auth, async (req, res) => {
   try {
     const Transaction = require('../models/Transaction');
@@ -145,15 +139,10 @@ router.get('/earnings-history', auth, async (req, res) => {
   }
 });
 
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-// Configure Multer Storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (!req.user) return cb(new Error('User not authenticated in upload'));
-    // Use process.cwd() to ensure we are relative to the running process (backend root)
+
     const dir = path.join(process.cwd(), 'uploads/kyc/');
     if (!fs.existsSync(dir)){
         fs.mkdirSync(dir, { recursive: true });
@@ -168,7 +157,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|pdf/;
     const mimetype = filetypes.test(file.mimetype);
@@ -187,11 +176,9 @@ const uploadMiddleware = upload.fields([
   { name: 'insurance', maxCount: 1 }
 ]);
 
-// Submit KYC documents
 router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
   uploadMiddleware(req, res, (err) => {
     if (err) {
-      console.error('Multer Upload Error:', err);
       if (err instanceof multer.MulterError) {
         return res.status(400).json({ message: `Upload error: ${err.message}`, error: err.code });
       }
@@ -201,15 +188,11 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-
     const user = await User.findById(req.user._id);
     
     if (!user) {
-        console.error('KYC Route: User not found');
         return res.status(404).json({ message: 'User not found' });
     }
-    
-
     
     if (!req.files || Object.keys(req.files).length === 0) {
       return res.status(400).json({ message: 'Please upload all required documents' });
@@ -219,7 +202,7 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
     
     const getFilePath = (fieldName) => {
         if (req.files && req.files[fieldName] && req.files[fieldName][0]) {
-            // Normalize path separators for Windows compatibility if needed, though usually fine
+
             return `${API_URL}/${req.files[fieldName][0].path.replace(/\\/g, '/')}`;
         }
         return user.kycDocuments ? user.kycDocuments[fieldName] : undefined;
@@ -232,8 +215,6 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
       insurance: getFilePath('insurance')
     };
 
-
-
     user.kycDocuments = kycDocuments;
     user.kycStatus = 'pending';
     
@@ -241,7 +222,7 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
     
     res.json({ message: 'KYC documents submitted successfully', kycStatus: user.kycStatus, documents: kycDocuments });
   } catch (error) {
-    res.status(500).json({ message: 'Server Error', error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Server Error', error: error.message });
   }
 });
 

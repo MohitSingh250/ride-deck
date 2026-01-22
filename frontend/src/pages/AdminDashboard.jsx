@@ -97,7 +97,7 @@ const AdminDashboard = () => {
     socket.on('admin-location-update', ({ rideId, location, driverId }) => {
       setLiveLocations(prev => ({
         ...prev,
-        [driverId]: { ...location, rideId } // Key by driverId instead of rideId
+        [driverId]: { ...location, rideId }
       }));
     });
 
@@ -143,7 +143,7 @@ const AdminDashboard = () => {
       });
       if (response.ok) {
         toast.success('Ride cancelled successfully');
-        // Refresh active rides
+
         const res = await fetch(`${API_URL}/api/admin/rides/active`, {
           headers: { 'Authorization': `Bearer ${user.token}` }
         });
@@ -169,7 +169,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="pt-24 pb-20 min-h-screen bg-slate-50 px-4 md:px-8">
-      {/* Document Viewer Modal */}
+
       <AnimatePresence>
         {selectedDriverDocs && (
           <>
@@ -251,7 +251,7 @@ const AdminDashboard = () => {
 
         {activeTab === 'overview' && (
           <div className="space-y-10">
-            {/* Stats Grid */}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { label: 'Total Riders', value: stats.totalUsers, icon: Users, color: 'indigo' },
@@ -276,7 +276,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-              {/* Revenue Trend Chart */}
+
               <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -307,7 +307,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Pending Verifications */}
+
               <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -349,7 +349,7 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Recent Rides Table */}
+
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -598,7 +598,7 @@ const AdminDashboard = () => {
                   zoom={12}
                   markers={allDrivers.filter(d => d.isOnline || liveLocations[d._id]).map(driver => {
                     const liveLoc = liveLocations[driver._id];
-                    // Use live location if available, else fallback to DB location
+
                     const lat = liveLoc?.lat || driver.currentLocation?.coordinates?.[1];
                     const lng = liveLoc?.lng || driver.currentLocation?.coordinates?.[0];
                     

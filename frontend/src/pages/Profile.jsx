@@ -105,7 +105,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-white pt-24 pb-12 px-6 lg:px-12">
       <div className="max-w-4xl mx-auto space-y-12">
-        {/* Profile Header */}
+
         <div className="flex flex-col md:flex-row items-center gap-8">
           <div className="relative group">
             <div className="w-32 h-32 bg-zinc-900 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-2xl overflow-hidden">
@@ -204,7 +204,7 @@ const Profile = () => {
               exit={{ opacity: 0, y: -20 }}
               className="grid grid-cols-1 md:grid-cols-2 gap-8"
             >
-              {/* Personal Info */}
+
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-black">Personal Information</h3>
                 <div className="space-y-4">
@@ -228,7 +228,7 @@ const Profile = () => {
                   </div>
                 </div>
 
-                {/* Saved Places */}
+
                 <div className="pt-6 space-y-4">
                   <h3 className="text-xl font-bold text-black">Saved Places</h3>
                   <div className="space-y-3">
@@ -259,7 +259,7 @@ const Profile = () => {
                 </div>
               </div>
 
-              {/* Account Settings */}
+
               <div className="space-y-6">
                 <h3 className="text-xl font-bold text-black">Account Settings</h3>
                 <div className="space-y-3">
@@ -294,7 +294,7 @@ const Profile = () => {
           )}
         </AnimatePresence>
 
-        {/* Danger Zone */}
+
         <div className="pt-12 border-t border-zinc-100 flex flex-col md:flex-row justify-between items-center gap-6">
           <button 
             onClick={handleLogout}

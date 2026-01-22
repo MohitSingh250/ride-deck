@@ -16,7 +16,7 @@ async function cleanAdminUser() {
     if (admin) {
       console.log(`Found admin user: ${admin.name}`);
       
-      // Fields to remove
+
       const fieldsToUnset = {
         vehicleType: 1,
         vehicleNumber: 1,
@@ -27,7 +27,7 @@ async function cleanAdminUser() {
         autoRenew: 1,
         isOnline: 1,
         currentLocation: 1,
-        walletBalance: 1, // Optional: keep if admins need wallet, but user said "remove all extra things"
+        walletBalance: 1,
         bankAccount: 1,
         kycStatus: 1,
         kycDocuments: 1,

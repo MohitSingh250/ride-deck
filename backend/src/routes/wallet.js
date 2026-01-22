@@ -4,7 +4,7 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { auth } = require('../middleware/authMiddleware');
 
-// Get wallet balance and recent transactions
+
 router.get('/history', auth, async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.user._id })
@@ -22,7 +22,7 @@ router.get('/history', auth, async (req, res) => {
   }
 });
 
-// Top up wallet (Mock)
+
 router.post('/topup', auth, async (req, res) => {
   const { amount } = req.body;
   try {

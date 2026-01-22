@@ -40,7 +40,7 @@ const RideHistory = () => {
   return (
     <div className="min-h-screen bg-white pt-24 pb-12 px-6 lg:px-12">
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate(-1)} className="p-2 hover:bg-zinc-100 rounded-full transition-all md:hidden">
@@ -64,7 +64,7 @@ const RideHistory = () => {
           </div>
         </div>
 
-        {/* Ride List */}
+
         <div className="space-y-4">
           {loading && page === 1 ? (
             <div className="flex justify-center py-12">
@@ -147,7 +147,7 @@ const RideHistory = () => {
           )}
         </div>
 
-        {/* Load More */}
+
         {hasMore && !loading && (
           <div className="text-center pt-8">
             <button 

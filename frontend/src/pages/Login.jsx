@@ -38,7 +38,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-white pt-16">
-      {/* Left Side: Branding/Illustration */}
+
       <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-zinc-900 to-black" />
@@ -62,7 +62,7 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right Side: Login Form */}
+
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16">
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
@@ -84,7 +84,7 @@ const Login = () => {
                   placeholder="+91 98765 43210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="uber-input w-full pl-12"
+                  className="uber-input w-full !pl-12"
                   required
                 />
               </div>
@@ -102,7 +102,7 @@ const Login = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="uber-input w-full pl-12"
+                  className="uber-input w-full !pl-12"
                   required
                 />
               </div>

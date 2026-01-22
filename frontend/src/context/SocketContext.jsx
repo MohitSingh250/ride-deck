@@ -23,12 +23,8 @@ export const SocketProvider = ({ children }) => {
         },
       });
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
-      });
-
-      newSocket.on('connect_error', (err) => {
-        console.error('Socket connection error:', err);
+      newSocket.on('connect_error', () => {
+        // Silent socket connection error
       });
 
       setSocket(newSocket);

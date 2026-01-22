@@ -47,7 +47,7 @@ const Wallet = () => {
   return (
     <div className="min-h-screen bg-white pt-24 pb-12 px-6 lg:px-12">
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Tabs */}
+
         <div className="flex p-1 bg-zinc-100 rounded-2xl w-fit">
           <button 
             onClick={() => setActiveTab('balance')}
@@ -65,7 +65,7 @@ const Wallet = () => {
 
         {activeTab === 'balance' ? (
           <div className="space-y-12">
-            {/* Balance Card */}
+
         <div className="bg-zinc-900 rounded-[3rem] p-8 md:p-16 text-white relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <WalletIcon className="h-48 w-48" />
@@ -86,7 +86,7 @@ const Wallet = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-8 bg-zinc-50 rounded-[2.5rem] border border-zinc-100 space-y-4">
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
@@ -110,7 +110,7 @@ const Wallet = () => {
           </div>
         </div>
 
-        {/* Transaction History */}
+
         <div className="space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-black tracking-tight">Recent Transactions</h3>
@@ -206,7 +206,7 @@ const Wallet = () => {
         )}
       </div>
 
-      {/* QR Code Modal */}
+
       {selectedCoupon && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedCoupon(null)}>
           <motion.div 

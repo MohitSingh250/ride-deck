@@ -5,9 +5,7 @@ const Ride = require('../models/Ride');
 const Transaction = require('../models/Transaction');
 const { auth, authorize } = require('../middleware/authMiddleware');
 
-// @route   GET /api/admin/stats
-// @desc    Get platform-wide statistics
-// @access  Private/Admin
+
 router.get('/stats', auth, authorize('admin'), async (req, res) => {
   try {
     const [totalUsers, totalDrivers, totalRides, totalRevenue] = await Promise.all([
@@ -31,9 +29,7 @@ router.get('/stats', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   GET /api/admin/drivers/pending
-// @desc    Get drivers with pending KYC
-// @access  Private/Admin
+
 router.get('/drivers/pending', auth, authorize('admin'), async (req, res) => {
   try {
     const drivers = await User.find({ role: 'driver', kycStatus: 'pending' });
@@ -43,9 +39,7 @@ router.get('/drivers/pending', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   GET /api/admin/drivers
-// @desc    Get all drivers
-// @access  Private/Admin
+
 router.get('/drivers', auth, authorize('admin'), async (req, res) => {
   try {
     const drivers = await User.find({ role: 'driver' }).select('-password');
@@ -55,11 +49,9 @@ router.get('/drivers', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   POST /api/admin/drivers/verify
-// @desc    Verify or reject driver KYC
-// @access  Private/Admin
+
 router.post('/drivers/verify', auth, authorize('admin'), async (req, res) => {
-  const { driverId, status } = req.body; // status: 'verified' or 'rejected'
+  const { driverId, status } = req.body;
   try {
     const driver = await User.findById(driverId);
     if (!driver) return res.status(404).json({ message: 'Driver not found' });
@@ -68,7 +60,7 @@ router.post('/drivers/verify', auth, authorize('admin'), async (req, res) => {
     if (status === 'verified') driver.isVerified = true;
     await driver.save();
 
-    // Emit socket event to the driver
+
     const io = req.app.get('io');
     if (io) {
 
@@ -84,9 +76,7 @@ router.post('/drivers/verify', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   POST /api/admin/users/:id/ban
-// @desc    Ban or Unban a user
-// @access  Private/Admin
+
 router.post('/users/:id/ban', auth, authorize('admin'), async (req, res) => {
   const { isBanned } = req.body;
   try {
@@ -94,7 +84,7 @@ router.post('/users/:id/ban', auth, authorize('admin'), async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.isBanned = isBanned;
-    // If banning a driver, force them offline
+
     if (isBanned && user.role === 'driver') {
       user.isOnline = false;
     }
@@ -106,9 +96,7 @@ router.post('/users/:id/ban', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   GET /api/admin/rides/active
-// @desc    Get currently active rides for monitoring
-// @access  Private/Admin
+
 router.get('/rides/active', auth, authorize('admin'), async (req, res) => {
   try {
     const rides = await Ride.find({ status: { $in: ['accepted', 'started'] } })
@@ -121,9 +109,7 @@ router.get('/rides/active', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   GET /api/admin/rides
-// @desc    Get all rides for monitoring
-// @access  Private/Admin
+
 router.get('/rides', auth, authorize('admin'), async (req, res) => {
   try {
     const rides = await Ride.find()
@@ -137,9 +123,7 @@ router.get('/rides', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// @route   POST /api/admin/rides/:id/cancel
-// @desc    Force cancel a ride
-// @access  Private (Admin only)
+
 router.post('/rides/:id/cancel', auth, authorize('admin'), async (req, res) => {
   try {
     const ride = await Ride.findById(req.params.id);
@@ -147,17 +131,17 @@ router.post('/rides/:id/cancel', auth, authorize('admin'), async (req, res) => {
       return res.status(404).json({ message: 'Ride not found' });
     }
 
-    // If already completed or cancelled, do nothing
+
     if (['completed', 'cancelled'].includes(ride.status)) {
       return res.status(400).json({ message: `Ride is already ${ride.status}` });
     }
 
     const previousStatus = ride.status;
     ride.status = 'cancelled';
-    ride.driverId = null; // Unassign driver
+    ride.driverId = null;
     await ride.save();
 
-    // Notify Rider and Driver
+
     const io = req.app.get('io');
     if (io) {
       if (ride.riderId) {
@@ -167,9 +151,7 @@ router.post('/rides/:id/cancel', auth, authorize('admin'), async (req, res) => {
           message: 'Ride cancelled by Admin' 
         });
       }
-      // If there was a driver assigned, notify them too
-      // Note: We cleared driverId, so we need to check if we have the old ID or just broadcast
-      // Ideally, we should have stored the old driverId before clearing
+
     }
 
     res.json({ message: 'Ride force cancelled successfully', ride });

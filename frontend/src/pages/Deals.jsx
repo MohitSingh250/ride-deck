@@ -36,7 +36,7 @@ const Deals = () => {
   return (
     <div className="min-h-screen bg-white pt-24 pb-12 px-6 lg:px-12">
       <div className="max-w-5xl mx-auto space-y-12">
-        {/* Header */}
+
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold text-black tracking-tight">Exclusive Offers</h1>
           <p className="text-zinc-500 font-medium max-w-md mx-auto">
@@ -44,7 +44,7 @@ const Deals = () => {
           </p>
         </div>
 
-        {/* Featured Deal */}
+
         <div className="bg-zinc-900 rounded-[3rem] p-8 md:p-16 text-white relative overflow-hidden shadow-2xl group cursor-pointer">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <Gift className="h-64 w-64" />
@@ -70,7 +70,7 @@ const Deals = () => {
           </div>
         </div>
 
-        {/* Offers Grid */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {offers.map((offer) => (
             <motion.div
@@ -103,7 +103,7 @@ const Deals = () => {
           ))}
         </div>
 
-        {/* Promo Code Input */}
+
         <div className="max-w-xl mx-auto pt-12">
           <div className="p-8 bg-zinc-50 rounded-[2.5rem] border border-zinc-100 space-y-6 text-center">
             <h3 className="text-xl font-bold text-black">Have a promo code?</h3>
