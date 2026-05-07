@@ -28,83 +28,47 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white font-sans pt-16">
+    <div className="min-h-screen bg-white font-sans">
+      {/* Hero Section */}
+      <div className="relative h-[90vh] flex items-center overflow-hidden">
+        {/* Background Image/Gradient */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/images/home_hero_gen.png" 
+            alt="Hero Background" 
+            className="w-full h-full object-cover brightness-75 scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+        </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 lg:py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-
-          <div className="max-w-xl">
-            <div className="flex items-center gap-2 mb-8">
-              <span className="text-4xl font-bold text-black tracking-tight">Ride</span>
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 relative z-10 w-full">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="max-w-2xl"
+          >
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-4xl font-black text-white tracking-tighter">RideDeck</span>
             </div>
             
-            <h1 className="text-5xl lg:text-6xl font-bold text-black leading-[1.1] mb-12">
-              Request a ride for now or later
+            <h1 className="text-6xl lg:text-8xl font-bold text-white leading-[1] mb-8 tracking-tight">
+              Your ride, <br />
+              <span className="text-white/70">reimagined.</span>
             </h1>
 
-            <div className="bg-zinc-50 p-4 rounded-xl mb-8 flex items-center gap-3 border border-zinc-100">
-              <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl mb-12 flex items-center gap-3 border border-white/20 inline-flex">
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                 <Gift className="h-3 w-3 text-white" />
               </div>
-              <p className="text-sm font-medium text-zinc-600">
-                Up to 50% off your first 5 RideDeck rides. T&Cs apply.*
+              <p className="text-sm font-medium text-white">
+                50% OFF your first 5 rides
               </p>
             </div>
-
-            <form onSubmit={handleSeePrices} className="space-y-4 relative">
-
-              <div className="absolute left-[23px] top-[28px] bottom-[28px] w-[1px] bg-zinc-300 z-0" />
-              
-              <div className="relative z-10">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 bg-black rounded-full" />
-                <input
-                  type="text"
-                  placeholder="Pickup location"
-                  value={pickup}
-                  onChange={(e) => setPickup(e.target.value)}
-                  className="w-full pl-12 pr-12 py-4 bg-zinc-100 rounded-lg text-lg font-medium focus:ring-2 focus:ring-black outline-none transition-all"
-                />
-                <Navigation className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
-              </div>
-
-              <div className="relative z-10">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 bg-black rounded-sm" />
-                <input
-                  type="text"
-                  placeholder="Dropoff location"
-                  value={dropoff}
-                  onChange={(e) => setDropoff(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-zinc-100 rounded-lg text-lg font-medium focus:ring-2 focus:ring-black outline-none transition-all"
-                />
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button type="submit" className="uber-btn-black flex-1 py-4 text-lg">
-                  See prices
-                </button>
-                <button type="button" onClick={() => navigate('/rider-dashboard')} className="uber-btn-white flex-1 py-4 text-lg">
-                  Schedule for later
-                </button>
-              </div>
-            </form>
-          </div>
-
-
-          <div className="relative hidden lg:block">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              className="rounded-3xl overflow-hidden shadow-2xl"
-            >
-              <img 
-                src="/images/home_hero_gen.png" 
-                alt="RideDeck Premium Car" 
-                className="w-full h-full object-cover"
-              />
-            </motion.div>
-          </div>
+          </motion.div>
         </div>
+
+        {/* Removed Hero Booking Bar - Now persistent at bottom */}
       </div>
 
 
@@ -211,10 +175,40 @@ const Home = () => {
                 </Link>
               </>
             )}
-          </div>
         </div>
       </div>
+      {/* Persistent Bottom Booking Bar */}
+      <div className="booking-bar-container">
+        <form onSubmit={handleSeePrices} className="booking-bar-rect">
+          <div className="input-group">
+            <div className="input-icon bg-black" />
+            <input
+              type="text"
+              placeholder="Pickup location"
+              value={pickup}
+              onChange={(e) => setPickup(e.target.value)}
+              className="uber-input-minimal"
+            />
+          </div>
+
+          <div className="input-group">
+            <div className="input-icon bg-black rounded-sm" />
+            <input
+              type="text"
+              placeholder="Where to?"
+              value={dropoff}
+              onChange={(e) => setDropoff(e.target.value)}
+              className="uber-input-minimal"
+            />
+          </div>
+
+          <button type="submit" className="w-full lg:w-auto px-10 py-4 bg-black text-white rounded-[20px] font-bold text-base hover:bg-zinc-800 transition-all active:scale-95 whitespace-nowrap">
+            Check Prices
+          </button>
+        </form>
+      </div>
     </div>
+  </div>
   );
 };
 

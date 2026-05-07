@@ -531,329 +531,189 @@ const RiderDashboard = () => {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col lg:flex-row bg-white overflow-hidden pt-16 relative">
-      {/* Left Sidebar: Booking Flow */}
-      <div className="fixed bottom-0 left-0 right-0 h-[45vh] lg:h-full lg:w-[450px] lg:relative lg:bottom-auto bg-white border-t lg:border-t-0 lg:border-r border-zinc-100 flex flex-col z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-xl rounded-t-3xl lg:rounded-none">
-        <div className="p-6 flex-1 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            {!showReserve ? (
-              <motion.div
-                key="booking"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
-              >
-                <div className="flex items-center justify-between mb-8">
-                  <h1 className="text-3xl font-bold text-black">Where to?</h1>
-                  <div className="flex gap-2">
-                    <button className="uber-btn-white px-3 py-2 text-sm flex items-center gap-2">
-                      <Clock className="h-4 w-4" /> Pickup now <ChevronDown className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => setBookingForSelf(!bookingForSelf)}
-                      className={`uber-btn-white px-3 py-2 text-sm flex items-center gap-2 ${!bookingForSelf ? 'bg-black text-white' : ''}`}
-                    >
-                      <User className="h-4 w-4" /> {bookingForSelf ? 'For me' : 'For someone'} <ChevronDown className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+    <div className="h-screen w-full flex flex-col bg-white overflow-hidden pt-16 relative">
+      {/* Right Side: Map (Now Full Screen) */}
+      <div className="flex-1 relative z-0">
+        <Map 
+          pickup={pickupCoords} 
+          dropoff={dropoffCoords} 
+          markers={[
+            ...(driver?.location ? [{
+              position: [driver.location.lat, driver.location.lng],
+              icon: 'car',
+              popup: 'Your Driver'
+            }] : []),
+            ...activeCampaigns.map(c => ({
+              position: c.location.coordinates.slice().reverse(),
+              icon: 'brand',
+              logo: c.brandId.logo,
+              popup: c.title
+            }))
+          ]}
+          onRouteFound={handleRouteFound}
+        />
+      </div>
 
-                {!bookingForSelf && (
-                  <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 mb-4">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Rider Name</label>
-                    <input 
-                      type="text" 
-                      value={riderName}
-                      onChange={(e) => setRiderName(e.target.value)}
-                      placeholder="Enter rider's name"
-                      className="w-full p-2 bg-white rounded-lg border border-zinc-200 outline-none focus:border-black"
-                    />
-                  </div>
-                )}
-
-                <div className="relative space-y-2">
-                  {/* Vertical Line */}
-                  <div className="absolute left-[23px] top-[24px] bottom-[24px] w-[1px] bg-zinc-300 z-0" />
-                  
-                  <div className="relative z-10">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 bg-black rounded-full" />
-                    <input
-                      type="text"
-                      placeholder="Enter pickup location"
-                      value={pickup}
-                      onChange={(e) => {
-                        setPickup(e.target.value);
-                        setActiveInput('pickup');
-                        fetchSuggestions(e.target.value);
-                      }}
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-100 rounded-lg font-medium focus:ring-2 focus:ring-black outline-none transition-all"
-                    />
-                  </div>
-
-                  <div className="relative z-10">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 bg-black rounded-sm" />
-                    <input
-                      type="text"
-                      placeholder="Enter destination"
-                      value={dropoff}
-                      onChange={(e) => {
-                        setDropoff(e.target.value);
-                        setActiveInput('dropoff');
-                        fetchSuggestions(e.target.value);
-                      }}
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-100 rounded-lg font-medium focus:ring-2 focus:ring-black outline-none transition-all"
-                    />
-                  </div>
-
-                  {/* Suggestions Dropdown */}
-                  {suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 bg-white shadow-2xl rounded-xl mt-2 z-50 border border-zinc-100 overflow-hidden">
-                      {suggestions.map((loc, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSelectLocation(loc)}
-                          className="w-full px-4 py-3 text-left hover:bg-zinc-50 flex items-start gap-3 border-b border-zinc-50 last:border-0"
-                        >
-                          <MapPin className="h-5 w-5 text-zinc-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="font-bold text-sm text-black line-clamp-1">{loc.display_name.split(',')[0]}</p>
-                            <p className="text-xs text-zinc-500 line-clamp-1">{loc.display_name}</p>
-                          </div>
-                        </button>
-                      ))}
+      {/* Wide Rectangular Booking Bar at Bottom */}
+      <div className="booking-bar-container max-w-6xl">
+        <div className="booking-bar-rect">
+          <div className="flex-1 p-2 overflow-y-auto lg:overflow-visible custom-scrollbar">
+            <AnimatePresence mode="wait">
+              {!showReserve ? (
+                <motion.div
+                  key="booking"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3"
+                >
+                  <div className="flex-1 flex flex-col lg:flex-row gap-2">
+                    <div className="input-group">
+                      <div className="input-icon bg-black" />
+                      <input
+                        type="text"
+                        placeholder="Pickup location"
+                        value={pickup}
+                        onChange={(e) => {
+                          setPickup(e.target.value);
+                          setActiveInput('pickup');
+                          fetchSuggestions(e.target.value);
+                        }}
+                        className="uber-input-minimal"
+                      />
                     </div>
-                  )}
-                </div>
 
-                {/* Quick Shortcuts */}
-                <div className="grid grid-cols-2 gap-4 mt-8">
-                  <button 
-                    onClick={() => setShowSavedPlaces(true)}
-                    className="flex items-center gap-3 p-4 bg-zinc-50 rounded-xl hover:bg-zinc-100 transition-all text-left"
-                  >
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                      <Star className="h-5 w-5 text-black" />
+                    <div className="input-group">
+                      <div className="input-icon bg-black rounded-sm" />
+                      <input
+                        type="text"
+                        placeholder="Where to?"
+                        value={dropoff}
+                        onChange={(e) => {
+                          setDropoff(e.target.value);
+                          setActiveInput('dropoff');
+                          fetchSuggestions(e.target.value);
+                        }}
+                        className="uber-input-minimal"
+                      />
                     </div>
-                    <div>
-                      <p className="font-bold text-sm">Saved</p>
-                      <p className="text-xs text-zinc-500">Quick access</p>
-                    </div>
-                  </button>
-                  <button 
-                    onClick={() => setShowReserve(true)}
-                    className="flex items-center gap-3 p-4 bg-zinc-50 rounded-xl hover:bg-zinc-100 transition-all text-left"
-                  >
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                      <Calendar className="h-5 w-5 text-black" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm">Reserve</p>
-                      <p className="text-xs text-zinc-500">Plan ahead</p>
-                    </div>
-                  </button>
-                </div>
 
-                {/* Ride Selection (Simulated) */}
-                {pickupCoords && dropoffCoords && (
-                  <div className="mt-8 space-y-4">
-                    <h3 className="font-bold text-lg">Choose a ride</h3>
-                    <div className="space-y-2">
-                      {[
-                        { id: 'go', name: 'RideDeck Go', time: '3 min', icon: Car },
-                        { id: 'premier', name: 'RideDeck Premier', time: '5 min', icon: Shield },
-                        { id: 'xl', name: 'RideDeck XL', time: '8 min', icon: User },
-                      ].map((type, i) => (
-                        <button 
-                          key={type.id} 
-                          onClick={() => {
-                            if (estimates) {
-                              setSelectedVehicle(type.id);
-                              setFare(estimates[type.id]);
-                            }
-                          }}
-                          className={`w-full p-4 flex items-center justify-between rounded-xl border-2 transition-all group ${selectedVehicle === type.id ? 'border-black bg-zinc-50' : 'border-transparent hover:border-zinc-200'}`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <type.icon className="h-8 w-8 text-black" />
-                            <div className="text-left">
-                              <p className="font-bold">{type.name}</p>
-                              <p className="text-xs text-zinc-500">{type.time} away</p>
+                    {suggestions.length > 0 && (
+                      <div className="absolute bottom-full mb-2 left-0 right-0 bg-white shadow-2xl rounded-2xl z-50 border border-zinc-100 overflow-hidden">
+                        {suggestions.map((loc, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleSelectLocation(loc)}
+                            className="w-full px-4 py-3 text-left hover:bg-zinc-50 flex items-start gap-3 border-b border-zinc-50 last:border-0"
+                          >
+                            <MapPin className="h-4 w-4 text-zinc-400 mt-0.5" />
+                            <div>
+                              <p className="font-bold text-xs text-black">{loc.display_name.split(',')[0]}</p>
+                              <p className="text-[10px] text-zinc-500 line-clamp-1">{loc.display_name}</p>
                             </div>
-                          </div>
-                          <div className="font-bold text-lg flex items-center gap-2">
-                            {estimates ? `₹${estimates[type.id]}` : '--'}
-                            {fareBreakup && type.id === 'go' && (
-                              <div className="group relative">
-                                <Info className="h-4 w-4 text-zinc-400 cursor-pointer" />
-                                <div className="absolute bottom-full right-0 mb-2 w-64 bg-white p-4 rounded-xl shadow-xl border border-zinc-100 hidden group-hover:block z-50">
-                                  <h4 className="font-bold mb-2 text-sm">Fare Breakdown</h4>
-                                  <div className="space-y-1 text-xs text-zinc-600">
-                                    <div className="flex justify-between">
-                                      <span>Base Fare</span>
-                                      <span>₹{fareBreakup.base}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Distance ({((distance || 0) / 1000).toFixed(1)} km)</span>
-                                      <span>₹{fareBreakup.distanceFare}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Time ({Math.round((duration || 0) / 60)} min)</span>
-                                      <span>₹{fareBreakup.timeFare}</span>
-                                    </div>
-                                    {fareBreakup.surge > 1 && (
-                                      <div className="flex justify-between text-amber-600 font-bold">
-                                        <span>Surge ({fareBreakup.surge.toFixed(1)}x)</span>
-                                        <span>+₹{fareBreakup.surgeAmount}</span>
-                                      </div>
-                                    )}
-                                    {fareBreakup.discount > 0 && (
-                                      <div className="flex justify-between text-emerald-600 font-bold">
-                                        <span>Discount</span>
-                                        <span>-₹{fareBreakup.discount}</span>
-                                      </div>
-                                    )}
-                                    <div className="border-t border-zinc-100 pt-1 mt-1 flex justify-between font-bold text-black">
-                                      <span>Total</span>
-                                      <span>₹{fare}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {!pickupCoords || !dropoffCoords ? (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setShowSavedPlaces(true)}
+                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-4 bg-zinc-100 rounded-[20px] hover:bg-zinc-200 transition-all"
+                      >
+                        <Star className="h-4 w-4" />
+                        <span className="text-sm font-bold">Saved</span>
+                      </button>
+                      <button 
+                        onClick={() => setShowReserve(true)}
+                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-4 bg-zinc-100 rounded-[20px] hover:bg-zinc-200 transition-all"
+                      >
+                        <Calendar className="h-4 w-4" />
+                        <span className="text-sm font-bold">Reserve</span>
+                      </button>
                     </div>
-                    <div className="mt-4 space-y-2">
-                      <p className="font-bold text-sm">Payment Method</p>
-                      <div className="flex gap-4">
+                  ) : (
+                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 flex-grow">
+                       <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-hide no-scrollbar">
+                        {[
+                          { id: 'go', name: 'Go', icon: Car },
+                          { id: 'premier', name: 'Premier', icon: Shield },
+                          { id: 'xl', name: 'XL', icon: User },
+                        ].map((type) => (
+                          <button 
+                            key={type.id} 
+                            onClick={() => {
+                              if (estimates) {
+                                setSelectedVehicle(type.id);
+                                setFare(estimates[type.id]);
+                              }
+                            }}
+                            className={`flex-shrink-0 px-4 py-3 flex items-center gap-3 rounded-[20px] border-2 transition-all ${selectedVehicle === type.id ? 'border-black bg-zinc-50 shadow-sm' : 'border-transparent bg-zinc-100/50 hover:border-zinc-200'}`}
+                          >
+                            <type.icon className="h-5 w-5 text-black" />
+                            <div className="text-left">
+                              <p className="font-bold text-xs">{type.name}</p>
+                              <p className="text-[9px] font-bold text-black">{estimates ? `₹${estimates[type.id]}` : '--'}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2 flex-grow lg:flex-grow-0">
                         <button 
-                          onClick={() => setPaymentMethod('cash')}
-                          className={`flex-1 p-3 rounded-xl border-2 flex items-center justify-center gap-2 font-bold transition-all ${paymentMethod === 'cash' ? 'border-black bg-black text-white' : 'border-zinc-100 bg-zinc-50 text-zinc-500'}`}
+                          onClick={() => setPaymentMethod(paymentMethod === 'cash' ? 'wallet' : 'cash')}
+                          className="px-4 py-4 bg-zinc-100 rounded-[20px] flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap"
                         >
-                          <Banknote className="h-5 w-5" /> Cash
+                          {paymentMethod === 'cash' ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+                          {paymentMethod.toUpperCase()}
                         </button>
                         <button 
-                          onClick={() => setPaymentMethod('wallet')}
-                          className={`flex-1 p-3 rounded-xl border-2 flex items-center justify-center gap-2 font-bold transition-all ${paymentMethod === 'wallet' ? 'border-black bg-black text-white' : 'border-zinc-100 bg-zinc-50 text-zinc-500'}`}
+                          onClick={handleRequestRide} 
+                          disabled={!estimates || loading}
+                          className="flex-grow lg:w-48 py-4 bg-black text-white rounded-[20px] font-bold text-sm disabled:opacity-50 active:scale-95 transition-all whitespace-nowrap"
                         >
-                          <CreditCard className="h-5 w-5" /> Wallet
+                          {loading ? 'Requesting...' : `Request ${selectedVehicle.toUpperCase()}`}
                         </button>
                       </div>
                     </div>
-                    <button 
-                      onClick={handleRequestRide} 
-                      disabled={!estimates || loading}
-                      className={`w-full py-4 text-lg mt-4 ${!estimates || loading ? 'bg-zinc-300 cursor-not-allowed text-zinc-500' : 'uber-btn-black'}`}
-                    >
-                      {loading ? 'Calculating...' : 'Request RideDeck Go'}
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="reserve"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-8"
-              >
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setShowReserve(false)} className="p-2 hover:bg-zinc-100 rounded-full transition-all">
-                    <X className="h-6 w-6 text-black" />
-                  </button>
-                  <h1 className="text-3xl font-bold text-black">Reserve</h1>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Date</label>
-                    <input 
-                      type="date" 
-                      value={reserveDate}
-                      onChange={(e) => setReserveDate(e.target.value)}
-                      className="w-full p-4 bg-zinc-100 rounded-lg font-medium outline-none focus:ring-2 focus:ring-black" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Time</label>
-                    <input 
-                      type="time" 
-                      value={reserveTime}
-                      onChange={(e) => setReserveTime(e.target.value)}
-                      className="w-full p-4 bg-zinc-100 rounded-lg font-medium outline-none focus:ring-2 focus:ring-black" 
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-8">
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-5 w-5 text-black" />
-                    </div>
-                    <div>
-                      <p className="font-bold">Choose your exact pickup time</p>
-                      <p className="text-sm text-zinc-500">Up to 90 days in advance</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Shield className="h-5 w-5 text-black" />
-                    </div>
-                    <div>
-                      <p className="font-bold">Extra wait time included</p>
-                      <p className="text-sm text-zinc-500">Your driver will wait up to 15 mins</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <X className="h-5 w-5 text-black" />
-                    </div>
-                    <div>
-                      <p className="font-bold">Cancel at no charge</p>
-                      <p className="text-sm text-zinc-500">Up to 60 minutes in advance</p>
-                    </div>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleScheduleRide}
-                  className="uber-btn-black w-full py-4 text-lg mt-8"
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="reserve"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="flex flex-col lg:flex-row items-center gap-4 w-full"
                 >
-                  Reserve a ride
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                  <button onClick={() => setShowReserve(false)} className="p-3 bg-zinc-100 hover:bg-zinc-200 rounded-full">
+                    <X className="h-5 w-5" />
+                  </button>
+                  <div className="flex-1 grid grid-cols-2 gap-3 w-full">
+                    <input type="date" value={reserveDate} onChange={(e) => setReserveDate(e.target.value)} className="w-full p-4 bg-zinc-100 rounded-[20px] text-sm font-semibold outline-none" />
+                    <input type="time" value={reserveTime} onChange={(e) => setReserveTime(e.target.value)} className="w-full p-4 bg-zinc-100 rounded-[20px] text-sm font-semibold outline-none" />
+                  </div>
+                  <button onClick={handleScheduleRide} className="w-full lg:w-auto px-8 py-4 bg-black text-white rounded-[20px] font-bold text-sm">
+                    Confirm Reservation
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-
-        {/* Bottom Bar: Quick Info */}
-        <div className="p-6 border-t border-zinc-100 bg-zinc-50">
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={() => navigate('/profile')}
-              className="flex items-center gap-3 hover:bg-zinc-100 p-2 -ml-2 rounded-2xl transition-all text-left"
-            >
-              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white font-bold shadow-sm">
-                {user?.name?.[0]}
-              </div>
-              <div>
-                <p className="font-bold text-sm text-black">{user?.name}</p>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">View Profile</p>
-              </div>
-            </button>
-            <div className="flex gap-4">
-              <button 
-                onClick={handleSimulateOffer} 
-                className="text-[10px] font-bold text-indigo-500 bg-indigo-50/50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-all border border-indigo-100 flex items-center gap-1"
-              >
-                <Gift className="h-3 w-3" /> Simulate Offer
-              </button>
-              <button className="text-sm font-bold text-black hover:underline">Change</button>
+          <div className="lg:border-l border-zinc-100 px-4 py-2 flex lg:flex-col items-center justify-center gap-2 lg:gap-1">
+            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg">
+              {user?.name?.[0]}
             </div>
+            <button 
+              onClick={handleSimulateOffer}
+              className="p-2 lg:p-1 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+              title="View Offers"
+            >
+              <Gift className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
