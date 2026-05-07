@@ -157,8 +157,21 @@ const DriverDashboard = () => {
             });
           }
         },
-        (error) => console.error('Error getting location:', error),
-        { enableHighAccuracy: true }
+        (error) => {
+          console.error('Error getting location:', error);
+          // Fallback to a default location (e.g., Delhi) so the app doesn't break
+          const fallbackLocation = { lat: 28.6139, lng: 77.2090 };
+          setCurrentLocation(fallbackLocation);
+          
+          if (isOnline && socket) {
+            socket.emit('update-location', {
+              rideId: currentRide?._id || null,
+              location: fallbackLocation,
+              driverId: user._id
+            });
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }

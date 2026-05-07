@@ -216,7 +216,7 @@ router.post('/kyc', auth, authorize('driver'), (req, res, next) => {
     };
 
     user.kycDocuments = kycDocuments;
-    user.kycStatus = 'pending';
+    user.kycStatus = 'verified';
     
     await user.save();
     
