@@ -7,6 +7,8 @@ const Campaign = require('../models/Campaign');
 const { auth } = require('../middleware/authMiddleware');
 const checkSubscription = require('../middleware/checkSubscription');
 
+const fallbackDriverService = require('../services/fallbackDriverService');
+
 router.post('/book', auth, async (req, res) => {
     const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords, paymentMethod } = req.body;
     const riderId = req.user._id;
@@ -22,7 +24,7 @@ router.post('/book', auth, async (req, res) => {
 
       const existingRide = await Ride.findOne({ 
         riderId, 
-        status: { $in: ['searching', 'booked', 'arrived', 'started'] } 
+        status: { $in: ['searching', 'booked', 'arrived', 'started', 'negotiating'] } 
       });
 
       if (existingRide) {
@@ -54,6 +56,7 @@ router.post('/book', auth, async (req, res) => {
         },
         vehicleType,
         fare,
+        riderOffer: fare,
         paymentMethod: paymentMethod || 'cash',
         otp: Math.floor(1000 + Math.random() * 9000).toString(),
       });
@@ -135,7 +138,23 @@ router.post('/book', auth, async (req, res) => {
           });
         });
       } else {
-        io.emit('newRideRequest', populatedRide);
+        // ACTIVATE FALLBACK SYSTEM
+        console.log(`🎯 [Fallback] No drivers found for ride ${ride._id}. Activating simulation.`);
+        io.to(riderId.toString()).emit('fallback_driver_triggered', {
+          rideId: ride._id,
+          message: 'Searching for nearby partners...'
+        });
+        
+        fallbackDriverService.triggerFallback(
+          io,
+          riderId.toString(),
+          ride._id.toString(),
+          {
+            pickup: ride.pickup,
+            dropoff: ride.dropoff,
+            fare: ride.fare
+          }
+        );
       }
 
       res.status(201).json(ride);
@@ -143,6 +162,7 @@ router.post('/book', auth, async (req, res) => {
       res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
+
 
 router.post('/schedule', auth, async (req, res) => {
   const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords, scheduledTime } = req.body;
@@ -600,6 +620,111 @@ router.get('/history', auth, async (req, res) => {
       totalPages: Math.ceil(total / limit),
       totalRides: total
     });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+router.post('/offer', auth, async (req, res) => {
+  const { rideId, amount, eta } = req.body;
+  const driverId = req.user._id;
+
+  try {
+    const driver = await User.findById(req.user.id);
+    if (driver.role !== 'driver') return res.status(403).json({ message: 'Only drivers can make offers' });
+
+    const ride = await Ride.findById(rideId);
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+    const offerData = {
+      driverId,
+      amount,
+      eta,
+      driverName: driver.name,
+      rating: driver.rating,
+      vehicleType: driver.vehicleType,
+      vehicleNumber: driver.vehicleNumber,
+      createdAt: new Date()
+    };
+
+    ride.offers.push(offerData);
+    ride.status = 'negotiating';
+    await ride.save();
+
+    const io = req.app.get('io');
+    io.to(ride.riderId.toString()).emit('newOffer', { rideId, offer: offerData });
+
+    res.json({ message: 'Offer sent', offer: offerData });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+router.post('/boost-fare', auth, async (req, res) => {
+  const { rideId, increment } = req.body;
+  try {
+    const ride = await Ride.findById(rideId);
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+    
+    ride.fare += increment;
+    ride.riderOffer += increment;
+    await ride.save();
+
+    const io = req.app.get('io');
+    io.emit('rideUpdate', { type: 'fare_boost', rideId, newFare: ride.fare, ride });
+
+    res.json(ride);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+router.post('/accept-offer', auth, async (req, res) => {
+  const { rideId, driverId, amount } = req.body;
+  const riderId = req.user._id;
+
+  try {
+    const ride = await Ride.findById(rideId);
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+    // Handle fallback driver
+    if (typeof driverId === 'string' && driverId.startsWith('fallback_')) {
+      const persona = fallbackDriverService.FALLBACK_PERSONAS.find(p => p.id === driverId);
+      if (persona) {
+        const io = req.app.get('io');
+        await fallbackDriverService.handleRiderAcceptFallback(
+          io,
+          riderId.toString(),
+          rideId,
+          persona,
+          amount,
+          { pickup: ride.pickup }
+        );
+        const updatedRide = await Ride.findById(rideId);
+        return res.json(updatedRide);
+      }
+    }
+
+    // Handle regular driver
+    const offer = ride.offers.find(o => o.driverId.toString() === driverId && o.amount === amount);
+    if (!offer && amount !== ride.riderOffer) {
+      return res.status(400).json({ message: 'Offer not found or changed' });
+    }
+
+    ride.driverId = driverId;
+    ride.fare = amount;
+    ride.status = 'booked';
+    ride.offers = [];
+    await ride.save();
+
+    const populatedRide = await Ride.findById(ride._id)
+      .populate('riderId', 'name phone rating')
+      .populate('driverId', 'name phone vehicleNumber vehicleType rating');
+
+    const io = req.app.get('io');
+    io.to(driverId.toString()).emit('rideAccepted', populatedRide);
+
+    res.json(populatedRide);
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }

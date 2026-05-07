@@ -40,6 +40,26 @@ const rideSchema = new mongoose.Schema({
     required: true,
   },
   fare: Number,
+  riderOffer: Number,
+  offers: [{
+    driverId: String, // String for virtual/fallback compatibility
+    amount: Number,
+    eta: Number,
+    driverName: String,
+    rating: Number,
+    vehicleType: String,
+    vehicleNumber: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
+  fallbackDriver: {
+    name: String,
+    phone: String,
+    vehicleNumber: String,
+    vehicleType: String,
+    rating: Number,
+    avatar: String,
+    isFallback: { type: Boolean, default: false }
+  },
   paymentMethod: {
     type: String,
     enum: ['wallet', 'cash'],

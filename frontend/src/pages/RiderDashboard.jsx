@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Clock, Calendar, ChevronRight, Star, Shield, MessageSquare, Phone, X, ArrowRight, Info, CreditCard, User, Gift, Bell, Share2, AlertTriangle, Music, Award, ChevronDown, Car, Banknote } from 'lucide-react';
+import { MapPin, Navigation, Clock, Calendar, ChevronRight, Star, Shield, MessageSquare, Phone, X, ArrowRight, Info, CreditCard, User, Gift, Bell, Share2, AlertTriangle, Music, Award, ChevronDown, Car, Banknote, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -50,6 +50,10 @@ const RiderDashboard = () => {
 
   const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [showSimulateOffer, setShowSimulateOffer] = useState(false);
+  
+  // Negotiation State
+  const [offers, setOffers] = useState([]);
+  const [isFallbackTriggered, setIsFallbackTriggered] = useState(false);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -309,6 +313,26 @@ const RiderDashboard = () => {
       });
     });
 
+    socket.on('newOffer', (data) => {
+      console.log('New offer received:', data);
+      setOffers(prev => {
+        const index = prev.findIndex(o => o.driverId === data.offer.driverId);
+        if (index >= 0) {
+          const newOffers = [...prev];
+          newOffers[index] = data.offer;
+          return newOffers;
+        }
+        return [data.offer, ...prev];
+      });
+      setRideStatus('negotiating');
+      toast.success(`New offer: ₹${data.offer.amount}`, { icon: '💰' });
+    });
+
+    socket.on('fallback_driver_triggered', (data) => {
+      setIsFallbackTriggered(true);
+      toast('Finding available partners...', { icon: '🤖' });
+    });
+
     return () => {
       socket.off('rideAccepted');
       socket.off('rideStatusUpdate');
@@ -381,6 +405,37 @@ const RiderDashboard = () => {
     };
   }, [searchTimeout]);
 
+  const handleAcceptOffer = async (offer) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/rides/accept-offer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({
+          rideId: currentRide._id,
+          driverId: offer.driverId,
+          amount: offer.amount
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentRide(data);
+        setDriver(data.driverId || data.fallbackDriver);
+        setRideStatus('booked');
+        setOffers([]);
+        toast.success('Offer accepted!');
+      } else {
+        const err = await response.json();
+        toast.error(err.message || "Failed to accept offer");
+      }
+    } catch (e) {
+      toast.error("Network error");
+    }
+  };
+
   const handleRequestRide = async () => {
     if (!pickupCoords || !dropoffCoords) {
       toast.error('Please select pickup and dropoff locations');
@@ -393,13 +448,20 @@ const RiderDashboard = () => {
     }
     
     setRideStatus('searching');
+    setOffers([]);
+    setIsFallbackTriggered(false);
     
     // Start 60s timeout
     const timeout = setTimeout(() => {
-      setRideStatus('idle');
-      toast.error('No drivers found. Please try again.');
-      // Ideally call API to cancel the search on backend too
-      handleCancelRide(); 
+      // Don't auto-cancel if we are negotiating or already booked
+      setRideStatus(prev => {
+        if (prev === 'searching') {
+          toast.error('No drivers found. Please try again.');
+          handleCancelRide(); 
+          return 'idle';
+        }
+        return prev;
+      });
     }, 60000);
     setSearchTimeout(timeout);
     
@@ -867,19 +929,75 @@ const RiderDashboard = () => {
           </div>
         </Modal>
 
-        {/* Searching Overlay */}
-        {rideStatus === 'searching' && (
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-30">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl text-center space-y-6">
-              <div className="relative w-24 h-24 mx-auto">
-                <div className="absolute inset-0 border-4 border-zinc-100 rounded-full" />
-                <div className="absolute inset-0 border-4 border-black rounded-full border-t-transparent animate-spin" />
+        {/* Searching / Negotiating Overlay */}
+        {(rideStatus === 'searching' || rideStatus === 'negotiating') && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-30 p-4">
+            <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden">
+              <div className="p-8 text-center space-y-6">
+                <div className="relative w-24 h-24 mx-auto">
+                   <div className="absolute inset-0 border-4 border-zinc-100 rounded-full" />
+                   <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin" />
+                   <div className="absolute inset-0 flex items-center justify-center">
+                     <Zap className="h-8 w-8 text-indigo-500 animate-pulse" />
+                   </div>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-black">
+                    {rideStatus === 'negotiating' ? 'Offers Found!' : 'Finding your ride'}
+                  </h2>
+                  <p className="text-zinc-500 font-medium">
+                    {isFallbackTriggered ? 'Matching you with premium partners...' : 'Connecting to nearby drivers...'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-black">Finding your ride</h2>
-                <p className="text-zinc-500">Connecting you to nearby drivers...</p>
+
+              {/* Offer Marketplace */}
+              {offers.length > 0 && (
+                <div className="px-6 pb-8 space-y-3 max-h-60 overflow-y-auto no-scrollbar">
+                  <AnimatePresence>
+                    {offers.map((offer) => (
+                      <motion.div
+                        key={offer.driverId}
+                        initial={{ x: 50, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        className="bg-zinc-50 p-4 rounded-2xl flex items-center justify-between border border-zinc-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-zinc-100 overflow-hidden">
+                            {offer.avatar ? (
+                              <img src={offer.avatar} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="h-6 w-6 text-zinc-300" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-black">{offer.driverName}</p>
+                            <div className="flex items-center gap-1">
+                              <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                              <span className="text-[10px] font-black text-zinc-400">{offer.rating} • {offer.eta}m away</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-2">
+                          <p className="text-xl font-black text-black">₹{offer.amount}</p>
+                          <button 
+                            onClick={() => handleAcceptOffer(offer)}
+                            className="bg-black text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                          >
+                            Accept
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              <div className="p-6 bg-zinc-50 border-t border-zinc-100">
+                <button onClick={() => handleCancelRide()} className="w-full py-4 text-rose-500 font-black text-sm uppercase tracking-widest">
+                  Cancel Search
+                </button>
               </div>
-              <button onClick={() => handleCancelRide()} className="uber-btn-white w-full">Cancel</button>
             </div>
           </div>
         )}

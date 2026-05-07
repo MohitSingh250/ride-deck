@@ -26,14 +26,14 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 500, 
+  windowMs: 15 * 60 * 1000,
+  max: 500,
   message: { message: 'Too many requests from this IP, please try again later.' }
 });
 
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, 
-  max: 50, 
+  windowMs: 60 * 60 * 1000,
+  max: 50,
   message: { message: 'Too many login attempts, please try again later.' }
 });
 
@@ -91,7 +91,7 @@ io.on('connection', (socket) => {
     if (rideId) {
       io.to(rideId).emit('location-update', { location, driverId });
     }
-    
+
     io.to('admins').emit('admin-location-update', { rideId, location, driverId });
   });
 
@@ -156,7 +156,7 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/rides', rideRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/brands', brandRoutes);
-app.use('/api/users', userRoutes); 
+app.use('/api/users', userRoutes);
 
 app.get('/', (req, res) => {
   res.send('Ride Deck API is running...');
