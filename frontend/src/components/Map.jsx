@@ -144,8 +144,8 @@ const Routing = ({ pickup, dropoff, onRouteFound }) => {
 
       const bounds = L.latLngBounds([]);
       
-      if (pickup) bounds.extend(pickup);
-      if (dropoff) bounds.extend(dropoff);
+      if (pickup && pickup[0] !== undefined && pickup[1] !== undefined) bounds.extend(pickup);
+      if (dropoff && dropoff[0] !== undefined && dropoff[1] !== undefined) bounds.extend(dropoff);
       if (markers && markers.length > 0) {
         markers.forEach(m => {
           if (m.position && m.position[0] !== undefined && m.position[1] !== undefined) {
