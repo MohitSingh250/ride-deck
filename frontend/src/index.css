@@ -37,15 +37,15 @@
 }
 
 .booking-bar-container {
-  @apply fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl z-[100] animate-slide-up;
+  @apply fixed bottom-10 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl z-[100];
 }
 
 .booking-bar-rect {
-  @apply glass rounded-[28px] p-2 lg:p-3 flex flex-col lg:flex-row items-center gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/40;
+  @apply glass rounded-[36px] p-4 lg:p-5 flex flex-col lg:flex-row items-center gap-4 shadow-[0_25px_60px_rgba(0,0,0,0.2)] border border-white/50 transition-all duration-500;
 }
 
 .input-group {
-  @apply flex-1 w-full relative flex items-center bg-zinc-100/50 hover:bg-zinc-100/80 focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5 rounded-[20px] transition-all;
+  @apply flex-1 w-full relative flex items-center bg-zinc-100/60 hover:bg-zinc-100/90 focus-within:bg-white focus-within:ring-4 focus-within:ring-black/5 rounded-[24px] transition-all duration-300;
 }
 
 .input-icon {
@@ -53,7 +53,7 @@
 }
 
 .uber-input-minimal {
-  @apply w-full pl-12 pr-4 py-4 bg-transparent border-none outline-none text-sm font-semibold text-black placeholder-zinc-400;
+  @apply w-full pl-14 pr-6 py-5 bg-transparent border-none outline-none text-base font-bold text-black placeholder-zinc-400;
 }
 
 .uber-btn-black {

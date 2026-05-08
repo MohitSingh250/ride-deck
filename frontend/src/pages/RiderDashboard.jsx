@@ -141,7 +141,7 @@ const RiderDashboard = () => {
 
   const handleSubmitRating = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/rides/${currentRide._id}/rate`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/rides/${currentRide._id}/rate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -629,8 +629,16 @@ const RiderDashboard = () => {
       </div>
 
       {/* Wide Rectangular Booking Bar at Bottom */}
-      <div className="booking-bar-container max-w-6xl">
-        <div className="booking-bar-rect">
+      <AnimatePresence>
+        {rideStatus === 'idle' && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="booking-bar-container max-w-6xl"
+          >
+            <div className="booking-bar-rect">
           <div className="flex-1 p-2 overflow-y-auto lg:overflow-visible custom-scrollbar">
             <AnimatePresence mode="wait">
               {!showReserve ? (
@@ -790,7 +798,9 @@ const RiderDashboard = () => {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
+      )}
+    </AnimatePresence>
 
       {/* Saved Places Modal */}
       <Modal isOpen={showSavedPlaces} onClose={() => setShowSavedPlaces(false)} title="Saved Places">
@@ -850,9 +860,11 @@ const RiderDashboard = () => {
         {/* Active Ride Overlay */}
         {['booked', 'arrived', 'in-ride'].includes(rideStatus) && driver && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
+            initial={{ y: 200, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-zinc-100 z-30"
+            exit={{ y: 200, opacity: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+            className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[95%] max-w-xl bg-white rounded-[40px] shadow-[0_30px_70px_rgba(0,0,0,0.25)] p-10 border border-zinc-100 z-[110]"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
@@ -886,38 +898,44 @@ const RiderDashboard = () => {
               </button>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-zinc-100 flex items-center justify-between">
-              {rideStatus !== 'in-ride' && (
-                <div>
-                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Share OTP</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-3xl font-black text-black tracking-[0.3em]">{currentRide?.otp || '----'}</p>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(currentRide?.otp);
-                        toast.success('OTP Copied!');
-                      }}
-                      className="p-2 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-all"
-                    >
-                      <Share2 className="h-4 w-4 text-black" />
-                    </button>
+            <div className="mt-8 pt-8 border-t border-zinc-100 space-y-6">
+              <div className="flex items-center justify-between">
+                {rideStatus !== 'in-ride' ? (
+                  <div>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">Security Code</p>
+                    <div className="flex items-center gap-4">
+                      <p className="text-4xl font-black text-black tracking-[0.2em]">{currentRide?.otp || '----'}</p>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentRide?.otp);
+                          toast.success('OTP Copied!');
+                        }}
+                        className="p-2.5 bg-zinc-100 rounded-xl hover:bg-zinc-200 transition-all"
+                      >
+                        <Share2 className="h-5 w-5 text-black" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-              {rideStatus === 'in-ride' && (
-                 <div>
-                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Destination</p>
-                  <p className="text-sm font-bold text-black line-clamp-1">{dropoff}</p>
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button onClick={handleSOS} className="p-3 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-all">
-                  <Shield className="h-6 w-6" />
-                </button>
-                {rideStatus !== 'in-ride' && (
-                  <button onClick={() => setShowCancelWarning(true)} className="text-rose-500 font-bold hover:underline">Cancel Ride</button>
+                ) : (
+                  <div>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Destination</p>
+                    <p className="text-lg font-bold text-black line-clamp-1">{dropoff}</p>
+                  </div>
                 )}
+                
+                <button onClick={handleSOS} className="w-16 h-16 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center hover:bg-rose-100 transition-all shadow-sm">
+                  <Shield className="h-8 w-8" />
+                </button>
               </div>
+
+              {rideStatus !== 'in-ride' && (
+                <button 
+                  onClick={() => setShowCancelWarning(true)} 
+                  className="w-full py-5 border-2 border-rose-100 text-rose-500 font-black text-sm uppercase tracking-widest rounded-[24px] hover:bg-rose-50 transition-all"
+                >
+                  Cancel Ride
+                </button>
+              )}
             </div>
           </motion.div>
         )}
@@ -943,7 +961,7 @@ const RiderDashboard = () => {
 
         {/* Searching / Negotiating Overlay */}
         {(rideStatus === 'searching' || rideStatus === 'negotiating') && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-30 p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[120] p-4">
             <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden">
               <div className="p-8 text-center space-y-6">
                 <div className="relative w-24 h-24 mx-auto">
