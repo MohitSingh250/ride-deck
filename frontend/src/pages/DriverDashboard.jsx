@@ -114,6 +114,29 @@ const DriverDashboard = () => {
   }, [user?.token]);
 
 
+  const fetchAvailableRides = async () => {
+    if (!user?.token || !currentLocation) return;
+    try {
+      const res = await fetch(`${API_URL}/api/rides/available?lat=${currentLocation.lat}&lng=${currentLocation.lng}`, {
+        headers: { 'Authorization': `Bearer ${user.token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAvailableRides(data);
+      }
+    } catch (error) {
+      console.error('Error fetching available rides:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOnline && currentLocation) {
+      fetchAvailableRides();
+    } else if (!isOnline) {
+      setAvailableRides([]);
+    }
+  }, [isOnline, currentLocation]);
+
   useEffect(() => {
     const fetchActiveRide = async () => {
       if (!user?.token || lastActiveRideToken.current === user.token) return;
@@ -158,7 +181,11 @@ const DriverDashboard = () => {
           }
         },
         (error) => {
-          console.error('Error getting location:', error);
+          // Silence common dev errors (Timeout/Unavailable) to keep console clean
+          if (error.code !== 3 && error.code !== 2) {
+             console.error('Geolocation error:', error.message);
+          }
+          
           // Fallback to a default location (e.g., Delhi) so the app doesn't break
           const fallbackLocation = { lat: 28.6139, lng: 77.2090 };
           setCurrentLocation(fallbackLocation);
@@ -171,7 +198,7 @@ const DriverDashboard = () => {
             });
           }
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
@@ -181,7 +208,10 @@ const DriverDashboard = () => {
     if (!socket) return;
 
     socket.on('newRideRequest', (ride) => {
-      setAvailableRides(prev => [ride, ...prev]);
+      setAvailableRides(prev => {
+        if (prev.find(r => r._id === ride._id)) return prev;
+        return [ride, ...prev];
+      });
       toast('New ride request nearby!', { icon: '🚗' });
     });
 

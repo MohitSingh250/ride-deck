@@ -9,6 +9,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const connectDB = require('./config/db');
 const User = require('./models/User');
+const Ride = require('./models/Ride');
 
 dotenv.config();
 
@@ -64,9 +65,32 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('driver-online', (driverId) => {
+  socket.on('driver-online', async (driverId) => {
     socket.join('drivers');
+    socket.join(driverId.toString()); // Ensure driver is in their own room
     console.log(`Driver ${driverId} joined drivers room`);
+
+    // Fetch and send nearby rides immediately
+    try {
+      const driver = await User.findById(driverId);
+      if (driver && driver.currentLocation) {
+        const rides = await Ride.find({
+          status: 'searching',
+          pickup: {
+            $near: {
+              $geometry: driver.currentLocation,
+              $maxDistance: 10000 // 10km
+            }
+          }
+        }).populate('riderId', 'name rating');
+
+        rides.forEach(ride => {
+          socket.emit('newRideRequest', ride);
+        });
+      }
+    } catch (error) {
+      console.error('Error sending nearby rides to new online driver:', error);
+    }
   });
 
   socket.on('join-admin', () => {

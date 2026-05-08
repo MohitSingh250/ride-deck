@@ -14,7 +14,7 @@ const KYC = () => {
     selfie: null
   });
 
-  const { user } = useAuth(); // Assuming useAuth is available here, otherwise import it
+  const { user, updateUser } = useAuth(); // Assuming useAuth is available here, otherwise import it
   const navigate = useNavigate(); // Import useNavigate
 
   const handleFileUpload = (type, e) => {
@@ -45,7 +45,8 @@ const KYC = () => {
       const data = await response.json();
       
       if (response.ok) {
-        toast.success('KYC documents submitted for review!', { id: loadingToast });
+        toast.success('KYC verified instantly!', { id: loadingToast });
+        updateUser({ kycStatus: data.kycStatus });
         setStep(3);
       } else {
         toast.error(data.message || 'Upload failed', { id: loadingToast });
@@ -173,15 +174,15 @@ const KYC = () => {
                 <CheckCircle className="h-12 w-12 text-white" />
               </div>
               <div className="space-y-4">
-                <h2 className="text-4xl font-bold text-black tracking-tight">Documents Submitted</h2>
+                <h2 className="text-4xl font-bold text-black tracking-tight">KYC Verified!</h2>
                 <p className="text-zinc-500 font-medium max-w-md mx-auto">
-                  We've received your documents and our team is reviewing them. This usually takes 24-48 hours.
+                  Your documents have been verified instantly. You can now start accepting rides and earning.
                 </p>
               </div>
               <div className="p-6 bg-zinc-50 rounded-3xl border border-zinc-100 flex items-center gap-4 max-w-md mx-auto">
-                <AlertCircle className="h-6 w-6 text-amber-500" />
+                <CheckCircle className="h-6 w-6 text-emerald-500" />
                 <p className="text-sm text-zinc-600 font-medium text-left">
-                  We'll notify you via email once your verification is complete.
+                  Your account is now fully verified and ready for action.
                 </p>
               </div>
               <button 

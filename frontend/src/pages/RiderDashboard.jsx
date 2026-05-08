@@ -341,14 +341,26 @@ const RiderDashboard = () => {
   }, [socket]);
 
   const fetchSuggestions = async (query) => {
-    if (query.length < 3) return;
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&countrycodes=in`);
-      const data = await response.json();
-      setSuggestions(data);
-    } catch (error) {
-      console.error('Error fetching suggestions:', error);
+    if (query.length < 3) {
+      setSuggestions([]);
+      return;
     }
+
+    if (searchTimeout) clearTimeout(searchTimeout);
+
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/rides/search-location?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSuggestions(data);
+        }
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+      }
+    }, 500); // 500ms debounce
+    
+    setSearchTimeout(timeout);
   };
 
   const handleSelectLocation = (loc) => {

@@ -8,6 +8,30 @@ const { auth } = require('../middleware/authMiddleware');
 const checkSubscription = require('../middleware/checkSubscription');
 
 const fallbackDriverService = require('../services/fallbackDriverService');
+const axios = require('axios');
+
+router.get('/search-location', async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.length < 3) return res.json([]);
+  
+  try {
+    const response = await axios.get(`https://nominatim.openstreetmap.org/search`, {
+      params: {
+        format: 'json',
+        q: q,
+        limit: 5,
+        countrycodes: 'in'
+      },
+      headers: {
+        'User-Agent': 'RideDeck-App'
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Nominatim Proxy Error:', error.message);
+    res.status(error.response?.status || 500).json({ message: 'Search failed' });
+  }
+});
 
 router.post('/book', auth, async (req, res) => {
     const { pickup, dropoff, vehicleType, fare, pickupCoords, dropoffCoords, paymentMethod } = req.body;
@@ -15,10 +39,12 @@ router.post('/book', auth, async (req, res) => {
 
     try {
       if (!pickup || !dropoff || !pickupCoords || !dropoffCoords || !fare) {
+        console.log('Book Ride Error: Missing fields', { pickup, dropoff, pickupCoords, dropoffCoords, fare });
         return res.status(400).json({ message: 'Missing required fields' });
       }
 
       if (!pickupCoords.lat || !pickupCoords.lng || !dropoffCoords.lat || !dropoffCoords.lng) {
+        console.log('Book Ride Error: Invalid coords', { pickupCoords, dropoffCoords });
         return res.status(400).json({ message: 'Invalid coordinates' });
       }
 
@@ -28,6 +54,7 @@ router.post('/book', auth, async (req, res) => {
       });
 
       if (existingRide) {
+        console.log('Book Ride Error: Existing ride', existingRide._id);
         return res.status(400).json({ message: 'You already have an active ride.' });
       }
 
@@ -77,7 +104,7 @@ router.post('/book', auth, async (req, res) => {
               type: 'Point',
               coordinates: [pickupLng, pickupLat]
             },
-            $maxDistance: 5000
+            $maxDistance: 10000
           }
         }
       };
@@ -205,14 +232,25 @@ router.get('/available', auth, async (req, res) => {
   
   try {
     let query = { status: 'searching' };
-    let rides = await Ride.find(query).populate('riderId', 'name phone rating');
-
     if (lat && lng) {
+      const radiusInKm = 10;
+      const radiusInRadians = radiusInKm / 6378.1;
+
+      query.pickup = {
+        $geoWithin: {
+          $centerSphere: [[Number(lng), Number(lat)], radiusInRadians]
+        }
+      };
+
+      rides = await Ride.find(query).populate('riderId', 'name phone rating');
+
       rides = rides.sort((a, b) => {
-        const distA = Math.sqrt(Math.pow(a.pickup.coordinates[1] - lat, 2) + Math.pow(a.pickup.coordinates[0] - lng, 2));
-        const distB = Math.sqrt(Math.pow(b.pickup.coordinates[1] - lat, 2) + Math.pow(b.pickup.coordinates[0] - lng, 2));
+        const distA = Math.sqrt(Math.pow(a.pickup.coordinates[1] - Number(lat), 2) + Math.pow(a.pickup.coordinates[0] - Number(lng), 2));
+        const distB = Math.sqrt(Math.pow(b.pickup.coordinates[1] - Number(lat), 2) + Math.pow(b.pickup.coordinates[0] - Number(lng), 2));
         return distA - distB;
       });
+    } else {
+      rides = await Ride.find(query).populate('riderId', 'name phone rating');
     }
 
     res.json(rides);

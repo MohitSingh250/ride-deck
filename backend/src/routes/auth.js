@@ -64,6 +64,8 @@ router.post(
         name: user.name,
         phone: user.phone,
         role: user.role,
+        kycStatus: user.kycStatus,
+        subscriptionStatus: user.subscriptionStatus,
         token: generateToken(user._id),
       });
     } catch (error) {
@@ -105,6 +107,9 @@ router.post(
         name: user.name,
         phone: user.phone,
         role: user.role,
+        kycStatus: user.kycStatus,
+        subscriptionStatus: user.subscriptionStatus,
+        isOnline: user.isOnline,
         token: generateToken(user._id),
       });
     } catch (error) {
