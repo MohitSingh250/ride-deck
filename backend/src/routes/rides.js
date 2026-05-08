@@ -48,15 +48,7 @@ router.post('/book', auth, async (req, res) => {
         return res.status(400).json({ message: 'Invalid coordinates' });
       }
 
-      const existingRide = await Ride.findOne({ 
-        riderId, 
-        status: { $in: ['searching', 'booked', 'arrived', 'started', 'negotiating'] } 
-      });
-
-      if (existingRide) {
-        console.log('Book Ride Error: Existing ride', existingRide._id);
-        return res.status(400).json({ message: 'You already have an active ride.' });
-      }
+      // [Removed] Restriction on multiple active rides as per user request
 
       const user = await User.findById(riderId);
       
